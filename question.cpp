@@ -20,41 +20,50 @@ int Goldbach(int number){
 	static vector<int> primes {3, 5, 7, 11, 13};
 	
 	int a = primes[0];
-	//int half = number / 2;
-	int rest = number - a;
 	// -> 소수 추가가 안됌....
 	
-	for (int j = 0; j < primes.size(); j++){
-		if (rest > primes[j]){
-			for (int k = a + 1; k <= rest; k++){ //-> 기존 수에서 13을 뺄 경우 13보다 큰 경우하고 작은 경우도 고려를 해봐야 할 거 같음
-				if (isPrimeNumber(k) == true){
-					primes.push_back(k);
-					break;
-				}
-			}
-			if (isPrimeNumber(rest) == true){
-				primes.push_back(rest);
-				break;
+	if (number - a > primes.back()){
+		for (int i = a + 1; i < number; i++){
+			if (isPrimeNumber(i) == true){
+				primes.push_back(i);
+				sort(primes.begin(), primes.end());
+				primes.erase(unique(primes.begin(), primes.end()),primes.end()); // 중복 제거하는 알고리즘?
 			}
 		}
+	} //소수 추가 알고리즘!
+	
+	/*for (int i = 0; i < primes.size(); i++){
+		cout << primes[i] << '\t';
+	}*/ // 단순 벡터 출력용 알고리즘
+	
+	int q = 0;
+	
+	while (a < number / 2){
+		for (int j = 0; j < primes.size(); j++){
+			if (number - a == primes[j]){
+				cout << number << " = " << a << " + " << number - a << endl;
+				return 0;
+			}
+			else
+				continue;//continue를 통해서 number - a를 벡터내의 소수와 계속 비교함
+		}
+		q++;//만일 그래도 없을 경우 a값을 a가 number의 절반이 될때까지 반복문을 돌림 그 이유는 a < number - a
+		a = primes[q++];
 	}
 	
-	int q, w = 0;
-	
-	while (w <= primes.back()){
-		if (primes[q] != primes.back()){
-			w = primes[q++];
-		}
-	
-		if (rest + a != number){
-			cout << "Goldbach's conjecture is wrong" << endl;
-			return 0;
-		}
-		else{
+	if (a == number / 2){
+		if (isPrimeNumber(a) == true){
 			cout << number << " = " << a << " + " << number - a << endl;
 			return 0;
 		}
+		else{
+			cout << "Goldbach's conjecture is wrong." << endl;
+			return 0;
+		}
 	}
-	
+	else{
+		cout << "Goldbach's conjecture is wrong." << endl;
+		return 0;
+	}
 	return 0;
 }
