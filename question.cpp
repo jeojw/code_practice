@@ -1,27 +1,108 @@
 #include <iostream>
 using namespace std;
 
-int sum_split(int number){
-	int data[50];
+template <typename T>
+struct Node{
+	T data; //노드 내의 데이터
+	Node<T> *next; // 노드의 주소값
+}
+
+template <typename T>
+class LinkedList{
+private:
+	Node<T> *head; // 리스트의 첫번째 노드
+	Node<T> *tail; // 리스트의 마지막 노드
+	int length = 0; // 리스트의 전체 길이
 	
-	if (number == 1)
-		return 1;
-	if (number == 2)
-		return 2;
-	if (number == 3)
-		return 4;
+public:
+	LinkedList();
+	~LinkedList();
 	
-	if (data[number] != 0)
-		return data[number];
-	
+	bool empty() const; // 리스트가 비어있는지 판별하는 함수
+	int PushBack(T data) const; // 리스트 마지막에 노드를 추가함
+	int insert(T data, int Index) const; //리스트 중간에 노드를 추가함->
+	int Pop() const; // 마지막 노드 삭제 함수
+	int Delete() const; // 노드 삭제 함수
+	void Search() const; // 노드를 탐색하는 함수
+	void Print(); //리스트 전체를 출력하는 함수
+	int GetLength(); //리스트의 크기를 반환하는 함수
+}
+
+template <typename T>
+LinkedList<T>::LinkedList(){
+	head = NULL;
+}
+
+template <typename T>
+LinkedList<T>::~LinkedList() {}
+
+template <typename T>
+bool LinkedList<T>::empty() const{
+	if (length == 0)
+		return true;
 	else
-		return data[number] = sum_split(number - 1) + sum_split(number - 2) + sum_split(number - 3);
-}	
+		return false;
+}
+
+template <typename T>
+int LinkedList<T>::PushBack(T data) const{
+	if(length == 0){
+		head->data = data;
+		head->next = NULL;
+	}
+	else{
+		Node<T> *newNode = new Node<T>;
+		
+		newNode->data = data;
+		newNode->next = NULL;
+		
+		tail->newNode = newNode;
+	}
+	
+	length++;
+	return 1;
+}
+
+template <typename T>
+int LinkedList<T>::Insert(T data, int Index){
+	if(length == 0){
+		head->data = data;
+		head->next = NULL;
+	}
+	else{
+		Node<T> *newNode = new Node<T>;
+		
+		
+	}
+}
+
+template <typename T>
+int LinkedList<T>::Pop() const{
+	if (length == 0){
+		cout << "ERROR!!!" << endl;
+		return -1;
+	}
+	else{
+		
+	}
+}
+
+template <typename T>
+int LinkedList<T>::Delete() const{
+	
+}
+
+template <typename T>
+void LinkedList<T>::Search() const{
+	
+}
+
+template <typename T>
+void LinkedList<T>::Print(){
+	
+}
 
 int main(){
-	int number;
-	cin >> number;
-	cout << sum_split(number) << endl;
 	
 	return 0;
 }
