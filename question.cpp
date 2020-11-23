@@ -99,7 +99,11 @@ void LinkedList<T>::Search() const{
 
 template <typename T>
 void LinkedList<T>::Print(){
+	if (length == 0)
+		cout << "No Items!!" << endl;
 	
+	for (Node<T>* cur = head; cur != tail; cur++)
+		cout << cur->data << " -> ";
 }
 
 int main(){
