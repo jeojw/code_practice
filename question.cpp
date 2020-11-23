@@ -56,7 +56,7 @@ int LinkedList<T>::PushBack(T data) const{
 		newNode->data = data;
 		newNode->next = NULL;
 		
-		tail->newNode = newNode;
+		tail->next = newNode;
 	}
 	
 	length++;
