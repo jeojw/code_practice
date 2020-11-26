@@ -58,15 +58,18 @@ int LinkedList<T>::GetLength() const{
 template <typename T>
 int LinkedList<T>::PushBack(const T& data) {
 	if(length == 0){
+		head = new Node<T>;
 		head->data = data;
 		head->next = tail;
 		tail = NULL;
 	}
 	else{
+		tail = new Node<T>;
 		Node<T> *newNode = new Node<T>;
 		
 		newNode->data = data;
 		newNode->next = NULL;
+		
 		tail->next = newNode;
 		tail = tail->next;
 	}
