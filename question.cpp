@@ -3,195 +3,129 @@ using namespace std;
 
 template <typename T>
 struct Node{
-	T data; //노드 내의 데이터
-	Node<T> *next; // 다음 노드의 주소를 저장할 포인터(절대!!! 자기 자신이 아님!!!!!!)
+	T data;
+	Node<T>* left;
+	Node<T>* right;
 };
 
 template <typename T>
-class LinkedList{
+class BinarySearchTree{
 private:
-	Node<T> *head; // 리스트의 첫번째 노드
-	Node<T> *tail; // 리스트의 마지막 노드
-	int length; // 리스트의 전체 길이
+	Node<T>* Root; // 최상위 노드
 	
 public:
-	LinkedList(); // 생성자
-	~LinkedList(); // 소멸자
+	BinarySearchTree();
+	~BinarySearchTree();
 	
-	bool IsEmpty() const; // 리스트가 비어있는지 판별하는 함수
-	int GetLength() const; // 리스트의 크기를 반환하는 함수
-	int PushBack(const T& data); // 리스트 마지막에 노드를 추가함
-	int Insert(const T& data, int Index); // 리스트 중간에 노드를 추가함
-	int Pop(); // 마지막 노드 삭제 함수
-	int Delete(int Index); // 노드 삭제 함수
-	Node<T>* Search(int Index); // 노드를 탐색하는 함수, index는 리스트 내의 노드의 좌표값(1부터 시작.....)
-	void Print(); // 리스트 전체를 출력하는 함수
+	int Insert(const T& data); // 삽입 함수
+	int Delete(const T& data); // 삭제 함수
+	Node<T>* Retreive(const T& data); // 노드 탐색 함수
+	void Preorder(); // 전위 순회
+	void Inorder(); // 중위 순회
+	void Postorder(); // 후위 순회
+	void Levelorder(); //층별 순회
 };
 
 template <typename T>
-LinkedList<T>::LinkedList(){
-	head = NULL;
-	tail = NULL;
-	length = 0;
+BinarySearchTree<T>::BinarySearchTree(){
+	Root = NULL;
 }
 
 template <typename T>
-LinkedList<T>::~LinkedList() {}
+BinarySearchTree<T>::~BinarySearchTree(){}
 
 template <typename T>
-bool LinkedList<T>::IsEmpty() const{
-	if (length == 0)
-		return true;
-	else
-		return false;
-}
-
-template <typename T>
-int LinkedList<T>::GetLength() const{
-	return length;
-}
-
-template <typename T>
-int LinkedList<T>::PushBack(const T& data) {
-	Node<T> *newNode = new Node<T>;
+int BinarySearchTree<T>::Insert(const T& data){
+	Node<T>* newNode = new Node<T>;
 	newNode->data = data;
-	newNode->next = NULL;
+	newNode->left = NULL;
+	newNode->right = NULL;
 	
-	if(length == 0)
-		head = newNode;
+	if (Root == NULL)
+		Root = newNode;
 	
-	else	
-		tail->next = newNode;
-	
-	tail = newNode;
-	
-	length++;
-	
-	return 1;
-}
-
-template <typename T>
-int LinkedList<T>::Insert(const T& data, int Index) {
-	Node<T> *newNode = new Node<T>;
-	newNode->data = data;
-	
-	if ((length <= 1) || (Index == length)){
-		cout << "Use PushBack!!" << endl;
-		return -1;
-	}
-	
-	if (Index > length){
-		cout << "over the range!!!" << endl;
-		return -1;
-	}
-	
-	if (Index == 1){ // 맨 앞에 수를 삽입시키는 함수.
-		newNode->next = Search(1);
-		int cur = 1;
-		while (cur != length){
-			Search(cur)->next = Search(cur + 1);
-			cur++;
+	else{
+		Node<T>* parent;
+		Node<T>* cur = Root;
+		
+		while (cur != NULL){
+			if (data == cur->data)
+				throw std::runtime_error("data is already existed. data : " + std::to_string(data));
+			
+			parent = cur;
+			
+			if (data < cur->data)
+				cur = cur->left;
+			
+			else
+				cur = cur->right;
 		}
 		
-		head = newNode;
-		tail = Search(length);
+		if (data < cur->data)
+			cur->left = newNode;
 		
-		length++;
-		
-		return 1;
+		else
+			cur->right = newNode;
 	}
-	
-	
-	Node<T>* tmp = Search(Index - 1);
-	newNode->next = tmp->next;
-	tmp->next = newNode;
-	
-	length++;
 	
 	return 1;
 }
 
 template <typename T>
-int LinkedList<T>::Pop() {
-	if (length == 0){
-		cout << "ERROR!!!" << endl;
-		return -1;
-	}
-	Node<T>* Prev = Search(length - 1);
-	Node<T>* del = Search(length);
-		
-	Prev->next = NULL;
-	delete del;
-	Prev = tail;
-		
-	length--;
+int BinarySearchTree<T>::Delete(const T& data){
+	Node<T>* del = Retreive(data);
+	Node<T>* parent;
 	
-	return 1;
+	if (del->left == NULL && del->right == NULL){
+		
+	}
+	
+	if (del->left != NULL && del->right == NULL){
+		
+	}
+	
+	if (del->left == NULL && del->rigt != NULL){
+		
+	}
+	
+	if (del->left != NULL && del->right != NULL){
+		
+	}
+	
+	return 0;
 }
 
 template <typename T>
-int LinkedList<T>::Delete(int Index) {
-	if (length == 0 || Index > length || Index <= 0){
-		cout << "ERROR!!!" << endl;
-		return -1;
-	}
+Node<T>* BinarySearchTree<T>::Retreive(const T& data){
+	Node<T>* cur = Root;
+	Node<T>* parent;
 	
-	if (Index == length){
-		cout << "Use Pop!!!" << endl;
-		return -1;
-	}
-	
-	if (Index == 1){
-		Node<T> *del = Search(1);
-		head = Search(2);
-		delete del;
+	while(cur->data != data){
+		parent = cur;
 		
-		length--;
-		return 1;
+		if (cur->data < data)
+			cur = cur->left;
+		
+		else
+			cur = cur->right;
 	}
-	
-	Node<T> *Prev = Search(Index - 1);
-	Node<T> *del = Search(Index);
-	
-	Prev->next = Search(Index)->next;
-	delete del;
-	
-	length--;
-	return 1;
-}
-
-template <typename T>
-Node<T>* LinkedList<T>::Search(int Index){
-	Node<T> *cur = head;
-	
-	for (int i = 0; i < Index - 1; i++)
-		cur = cur->next;
 	
 	return cur;
 }
 
 template <typename T>
-void LinkedList<T>::Print(){
-	if (length == 0)
-		cout << "No Items!!" << endl;
-	
-	Node<T>* cur = head;
-	while(cur != NULL){
-		cout <<	cur->data << " -> ";
-		cur = cur->next;
-	}
+void BinarySearchTree<T>::Preorder(){
+
 }
 
 int main(){
-	int data, data2, data3, data4;
-	cin >> data >> data2 >> data3 >> data4;
-	LinkedList<int> List;
-	List.PushBack(data);
-	List.PushBack(data2);
-	List.PushBack(data3);
-	List.Insert(data4, 2);
-	List.Delete(1);
-	List.Print();
+	BinarySearchTree<int> Tree;
+	
+	Tree.Insert(5);
+	Tree.Insert(6);
+	Tree.Insert(3);
+	Tree.Insert(4);
+	Tree.Insert(7);
 	
 	return 0;
 }
