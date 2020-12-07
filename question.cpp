@@ -20,10 +20,12 @@ public:
 	int Insert(const T& data); // 삽입 함수
 	int Delete(const T& data); // 삭제 함수
 	Node<T>* Retreive(const T& data); // 노드 탐색 함수
-	void Preorder(); // 전위 순회
-	void Inorder(); // 중위 순회
-	void Postorder(); // 후위 순회
-	void Levelorder(); //층별 순회
+	void Print(Node<T>* node);
+	void PrintAll();
+	void Preorder(Node<T>* node); // 전위 순회
+	void Inorder(Node<T>* node); // 중위 순회
+	void Postorder(Node<T>* node); // 후위 순회
+	void Levelorder(Node<T>* node); //층별 순회
 };
 
 template <typename T>
@@ -61,11 +63,11 @@ int BinarySearchTree<T>::Insert(const T& data){
 				cur = cur->right;
 		}
 		
-		if (data < cur->data)
-			cur->left = newNode;
+		if (data < parent->data)
+			parent->left = newNode;
 		
 		else
-			cur->right = newNode;
+			parent->right = newNode;
 	}
 	
 	return 1;
@@ -114,8 +116,50 @@ Node<T>* BinarySearchTree<T>::Retreive(const T& data){
 }
 
 template <typename T>
-void BinarySearchTree<T>::Preorder(){
+void BinarySearchTree<T>::Print(Node<T>* node){
+	cout << node->data << " -> ";
+}
 
+template <typename T>
+void BinarySearchTree<T>::PrintAll(){
+	cout << "Preorder: ";
+	Preorder(Root);
+	cout << endl;
+	cout << "Inorder: ";
+	Inorder(Root);
+	cout << endl;
+	cout << "Postorder: ";
+	Postorder(Root);
+}
+
+template <typename T>
+void BinarySearchTree<T>::Preorder(Node<T>* node){
+	if (node == NULL)
+		return;
+	
+	Print(node);
+	Preorder(node->left);
+	Preorder(node->right);
+}
+
+template <typename T>
+void BinarySearchTree<T>::Inorder(Node<T>* node){
+	if (node == NULL)
+		return;
+	
+	Inorder(node->left);
+	Print(node);
+	Inorder(node->right);
+}
+
+template <typename T>
+void BinarySearchTree<T>::Postorder(Node<T>* node){
+	if (node == NULL)
+		return;
+	
+	Postorder(node->left);
+	Postorder(node->right);
+	Print(node);
 }
 
 int main(){
@@ -126,6 +170,8 @@ int main(){
 	Tree.Insert(3);
 	Tree.Insert(4);
 	Tree.Insert(7);
-	
+	Tree.Insert(1);
+	Tree.PrintAll();
+
 	return 0;
 }
