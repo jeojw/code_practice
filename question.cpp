@@ -54,10 +54,19 @@ int MaxHeap<T>::Insert(const T& data){
 		size++;
 		
 		int half = size / 2;
-		while (ary[half] <= data){
-			T tmp = ary[half];
-			ary[half] = ary[size];
-			ary[size] = tmp;	
+		while (half != 0){
+			if (ary[half] <= data){
+				if (size % 2 == 0){
+					T tmp = ary[half];
+					ary[half] = ary[half * 2];
+					ary[half * 2] = tmp;
+				}
+				else{
+					T tmp = ary[half];
+					ary[half] = ary[half * 2 + 1];
+					ary[half * 2 + 1] = tmp;
+				}
+			}
 			half /= 2;
 		}
 	}
