@@ -3,92 +3,75 @@
 using namespace std;
 
 template <typename T>
-class MaxHeap{
-private:
-	T ary[MAX];
+struct Node{
 	T data;
-	int size;
-	
-public:
-	MaxHeap();
-	~MaxHeap();
-	
-	bool IsEmpty() const;
-	int GetSize() const;
-	int Insert(const T& data);
-	int Delete(const T& data);
-	int Retreive(const T& data);
-	void Print();
+	Node<T>* link;
 };
 
 template <typename T>
-MaxHeap<T>::MaxHeap(){
-	size = 0;
-}
-
-template <typename T>
-MaxHeap<T>::~MaxHeap(){}
-
-template <typename T>
-bool MaxHeap<T>::IsEmpty() const{
-	if (size == 0)
-		return true;
-	else
-		return false;
-}
-
-template <typename T>
-int MaxHeap<T>::GetSize() const{
-	return size;
-}
-
-template <typename T>
-int MaxHeap<T>::Insert(const T& data){
-	if (size == 0){
-		ary[1] = data;
-		size++;
-	}
+class ListGraph{
+private:
+	Node<T>* List;
+	int edges;
+	int vertexs;
 	
-	else{
-		ary[size + 1] = data;
-		size++;
-		
-		int half = size / 2;
-		while (half != 0){
-			if (ary[half] <= data){
-				if (size % 2 == 0){
-					T tmp = ary[half];
-					ary[half] = ary[half * 2];
-					ary[half * 2] = tmp;
-				}
-				else{
-					T tmp = ary[half];
-					ary[half] = ary[half * 2 + 1];
-					ary[half * 2 + 1] = tmp;
-				}
-			}
-			half /= 2;
-		}
-	}
+public:
+	ListGraph();
+	~ListGraph();
 	
-	return 1;
+	int GetEdge() const;
+	int GetVertex() const;
+	int PushVertex(const T& data, int Index); // 정점을 추가시키는 함수
+	int LinkVertex();
+	void PrintVertex();
+};
+
+template <typename T>
+ListGraph<T>::ListGraph(){
+	List = new Node<T>[MAX];
+	edges = 0;
+	vertexs = 0;
 }
 
 template <typename T>
-void MaxHeap<T>::Print(){
-	for (int i = 1; i < size + 1; i++)
-		cout << ary[i] << " -> ";
+ListGraph<T>::~ListGraph(){
+	delete[] List;
+}
+
+template <typename T>
+int ListGraph<T>::GetEdge() const{
+	return edges;
+}
+
+template <typename T>
+int ListGraph<T>::GetVertex() const{
+	return vertexs;
+}
+
+template <typename T>
+int ListGraph<T>::PushVertex(const T& data, int Index){
+	Node<T>* Vertex = new Node<T>;
+	Vertex->data = data;
+	
+	List[Index] = Vertex;
+	vertexs++;
+}
+
+template <typename T>
+void ListGraph<T>::PrintVertex(){
+	for (int i = 0; i < vertexs; i++)
+		cout << List[i] << " ";
 }
 
 int main(){
-	MaxHeap<int> heap;
+	ListGraph<int> graph;
 	
-	heap.Insert(4);
-	heap.Insert(7);
-	heap.Insert(3);
-	heap.Insert(8);
-	heap.Insert(5);
-	heap.Print();
+	graph.PushVertex(4, 0);
+	graph.PushVertex(7, 1);
+	graph.PushVertex(3, 2);
+	graph.PushVertex(6, 3);
+	graph.PushVertex(8, 4);
+	graph.PrintVertex();
 	
 	return 0;
 }
