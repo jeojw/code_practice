@@ -24,5 +24,5 @@ public:
 	int LinkVertex(int Index1, int Index2); // 헤더정점에서 갈 수 있는 정점을 추가시키는 함수
 	void PrintAll(); // 그래프 형태를 전원 출력시키는 함수
 };
-
+ 
 #endif
