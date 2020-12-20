@@ -66,3 +66,4 @@ void ListGraph<T>::PrintAll(){
 		cout << endl << "↓" << endl;
 	}
 }
+
