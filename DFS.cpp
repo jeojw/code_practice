@@ -1,28 +1,58 @@
-#include <iostream>
+#i#include <iostream>
 #include "ListGraph.h"
-#include "Stack.h"
+#include "ListGraph.cpp"
+#include <stack>
 using namespace std;
 
-/*template <typename T>
-void DFS(ListGraph<T> graph, Stack<T> stack){
-	bool visit[graph.HeaderSize()] = false;
-	int Index = 0;
+template <typename T>
+void DFS(int Index, ListGraph<T> graph){
+	stack<T> s;
+	bool visit[graph.GetVertex()] = { false };
+	T seq[graph.GetVertex()]; // 노드 방문 순서를 기록하는 배열
 	
-	while (Index != graph.HeaderSize() - 1){
-		visit[Index] = true;
-		for (int i = 0; i < graph.GetSize(Index); i++)
-			stack.Push(graph.RetreiveList[Index][i]);
-		
-		for (int i = 0; i < graph.GetSize(Index); i++){
-			if (link)
+	visit[Index] = true;
+	T cur = graph.GetHeader(Index);
+	s.push(cur);
+	int curIndex = Index;
+	int pos = 1;
+	int sequence = 0;
+	int pIndex;
+	seq[sequence] = cur;
+	
+	while (true){
+		while (true){
+			if (visit[graph.RetreiveIndex(graph.RetreiveList(curIndex, pos))] == true){
+				pos++;
+				if (pos == graph.GetSize(curIndex)){
+					curIndex = pIndex;
+				}
+			}
+			
+			else{
+				cur = graph.RetreiveList(curIndex, pos);
+				pIndex = curIndex;
+				curIndex = graph.RetreiveIndex(cur);
+				s.push(cur);
+				visit[curIndex] = true;
+				pos = 1;
+				sequence++;
+				seq[sequence] = cur;
+				break;
+			}
 		}
+		
+		if (s.size() == graph.GetVertex())
+			break;
+		else
+			continue;
 	}
 	
-}*/
+	for (int i = 0; i < s.size(); i++)
+		cout << seq[i] << "->";
+}
 
 int main(){
 	ListGraph<int> graph;
-//	Stack<int> stack;
 	
 	graph.PushHeader(2);
 	graph.PushHeader(4);
@@ -41,9 +71,8 @@ int main(){
 	graph.LinkVertex(3, 5);
 	graph.LinkVertex(5, 6);
 	graph.LinkVertex(6, 1);
-	graph.PrintAll();
 	
-//	DFS<int>(graph, stack);
+	DFS<int>(0, graph);
 	
 	return 0;
 }
