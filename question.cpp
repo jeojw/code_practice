@@ -20,9 +20,10 @@ public:
 	T GetHeader(int Index) const; // 그래프 헤더정점을 반환하는 함수
 	int GetSize(int Index) const; // 각 인접리스트의 크기를 반환하는 함수
 	T RetreiveList(int Index1, int Index2); // 각 인접리스트의 요소를 반환하는 함수
+	int RetreiveIndex(const T& data); // 헤더내의 데이터의 인덱스를 반환하는 함수
 	int PushHeader(const T& data); // 정점을 추가시키는 함수
 	int LinkVertex(int Index1, int Index2); // 헤더정점에서 갈 수 있는 정점을 추가시키는 함수
 	void PrintAll(); // 그래프 형태를 전원 출력시키는 함수
 };
- 
+
 #endif
