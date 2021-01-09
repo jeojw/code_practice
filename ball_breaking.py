@@ -23,7 +23,9 @@ class Player(object):
         elif(self.x_pos > 420 - self.width):
             self.x_pos = 420 - self.width
             
-    def hitbox(self, x_pos):
+        self.checkhitbox(x_pos)
+            
+    def checkhitbox(self, x_pos):
         self.x_pos += x_pos
         self.hitbox = pygame.Rect(self.x_pos, self.y_pos,
                                   self.width, self.height)
@@ -48,7 +50,7 @@ class Block(object):
         pygame.draw.rect(screen, self.color, [self.x_pos, self.y_pos,
                                               self.width, self.height])
         
-    def hitbox(self):
+    def checkhitbox(self):
         self.hitbox = pygame.Rect(self.x_pos, self.y_pos,
                                   self.width, self.height)
         
@@ -74,13 +76,14 @@ class Ball(object):
     def draw(self):
         pygame.draw.rect(screen, self.color, [self.x_pos, self.y_pos,
                                               self.width, self.height])
-        return self.hitbox
 
     def move(self, x_pos, y_pos):
         self.x_pos += x_pos
         self.y_pos += y_pos
         
-    def hitbox(self, x_pos, y_pos):
+        self.checkhitbox(x_pos, y_pos)
+        
+    def checkhitbox(self, x_pos, y_pos):
         self.x_pos += x_pos
         self.y_pos += y_pos
         self.hitbox = pygame.Rect(self.x_pos, self.y_pos,
@@ -106,7 +109,7 @@ class Wall(object):
         pygame.draw.rect(screen, self.color, [self.x_pos, self.y_pos,
                                               self.width, self.height])
     
-    def hitbox(self):
+    def checkhitbox(self):
         self.hitbox = pygame.Rect(self.x_pos, self.y_pos,
                                   self.width, self.height)
         
@@ -156,14 +159,12 @@ def start(): # 시작 함수
     keys = pygame.key.get_pressed()
     if(keys[pygame.K_LEFT]):
         player.move(-15)
-        player.hitbox(-15)
     elif(keys[pygame.K_RIGHT]):
         player.move(15)
-        player.hitbox(15)
     
     ballspeed = [2, 2]
     ball.move(ballspeed[0], ballspeed[1])
-    ball.hitbox(ballspeed[0], ballspeed[1])
+    ball.checkhitbox(ballspeed[0], ballspeed[1])
     if(ball.checkcollision(wall_1.hitbox) is True):
         ballspeed[0] *= -1
     if(ball.checkcollision(wall_2.hitbox) is True):
