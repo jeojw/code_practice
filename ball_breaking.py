@@ -1,92 +1,120 @@
 import pygame
 import sys
 
-class Player:
+class Player(object):
     def __init__(self):
         self.color = BLUE
         self.height = 15
         self.width = 60
         self.x_pos = 100
         self.y_pos = 500
-        self.Rect = pygame.Rect(self.x_pos, self.y_pos,
-                                self.width, self.height)
+        self.hitbox = pygame.Rect(self.x_pos, self.y_pos,
+                                  self.width, self.height)
 
     def draw(self):
         pygame.draw.rect(screen, self.color, [self.x_pos, self.y_pos,
                                               self.width, self.height])
 
-    def move(self):
-        keys = pygame.key.get_pressed()
-        if(keys[pygame.K_LEFT]):
-            self.x_pos -= 15
-        elif(keys[pygame.K_RIGHT]):
-            self.x_pos += 15
+    def move(self, x_pos):
+        self.x_pos += x_pos
 
-        if(self.x_pos < 0):
-            self.x_pos = 0
-        elif(self.x_pos > 422 - self.width):
-            self.x_pos = 422 - self.width
-        
-class Block:
-    def __init__(self, x_pos=0, y_pos=0, height=15, width=40):
+        if(self.x_pos < 2):
+            self.x_pos = 2
+        elif(self.x_pos > 420 - self.width):
+            self.x_pos = 420 - self.width
+            
+    def hitbox(self, x_pos):
+        self.x_pos += x_pos
+        self.hitbox = pygame.Rect(self.x_pos, self.y_pos,
+                                  self.width, self.height)
+    
+    def checkcollision(self, Ahitbox):
+        if(pygame.Rect.colliderect(self.hitbox, Ahitbox)):
+            return True
+        else:
+            return False
+
+class Block(object):
+    def __init__(self, x_pos=0, y_pos=0, width=40, height=15):
         self.color = GREEN
         self.height = height
         self.width = width
         self.x_pos = x_pos
         self.y_pos = y_pos
-        self.Rect = pygame.Rect(self.x_pos, self.y_pos,
-                                self.width, self.height)
+        self.hitbox = pygame.Rect(self.x_pos, self.y_pos,
+                                  self.width, self.height)
 
     def draw(self):
         pygame.draw.rect(screen, self.color, [self.x_pos, self.y_pos,
                                               self.width, self.height])
+        
+    def hitbox(self):
+        self.hitbox = pygame.Rect(self.x_pos, self.y_pos,
+                                  self.width, self.height)
+        
+    def checkcollision(self, Ahitbox):
+        if(pygame.Rect.colliderect(self.hitbox, Ahitbox)):
+            return True
+        else:
+            return False
 
     def destroy(self):
         pass
-    
 
-class Ball:
-    def __init__(self, x_pos, y_pos, height, width):
-        self.speed = [5, 5]
+class Ball(object):
+    def __init__(self, x_pos, y_pos, width, height):
         self.color = RED
         self.height = height
         self.width = width
         self.x_pos = x_pos
         self.y_pos = y_pos
-        self.Rect = pygame.Rect(self.x_pos, self.y_pos,
-                                self.width, self.height)
+        self.hitbox = pygame.Rect(self.x_pos, self.y_pos,
+                                  self.width, self.height)
 
     def draw(self):
-        pygame.draw.rect(screen, self.color, [self.Rect.x, self.Rect.y,
-                                              self.Rect.width, self.Rect.height])
+        pygame.draw.rect(screen, self.color, [self.x_pos, self.y_pos,
+                                              self.width, self.height])
+        return self.hitbox
 
-    def move(self):
-        self.Rect.x += self.speed[0]
-        self.Rect.y += self.speed[1]
+    def move(self, x_pos, y_pos):
+        self.x_pos += x_pos
+        self.y_pos += y_pos
         
-        if (self.Rect.right > x_size):
-            self.speed[0] *= -1
+    def hitbox(self, x_pos, y_pos):
+        self.x_pos += x_pos
+        self.y_pos += y_pos
+        self.hitbox = pygame.Rect(self.x_pos, self.y_pos,
+                                  self.width, self.height)
         
-        if (self.Rect.left < 0):
-            self.speed[0] *= -1
-        
-        if (self.Rect.top < 0):
-            self.speed[1] *= -1
-            
-        if ()
+    def checkcollision(self, Ahitbox):
+        if(pygame.Rect.colliderect(self.hitbox, Ahitbox)):
+            return True
+        else:
+            return False
 
-class Wall:
-    def __init__(self, x_start, y_start, x_finish, y_finish, thick):
+class Wall(object):
+    def __init__(self, x_pos, y_pos, width, height):
         self.color = BLACK
-        self.x_start = x_start
-        self.y_start = y_start
-        self.x_finish = x_finish
-        self.y_finish = y_finish
-        self.thick = thick
-
+        self.x_pos = x_pos
+        self.y_pos = y_pos
+        self.height = height
+        self.width = width
+        self.hitbox = pygame.Rect(self.x_pos, self.y_pos,
+                                  self.width, self.height)
+        
     def draw(self):
-        pygame.draw.line(screen, self.color, [self.x_start, self.y_start],
-                         [self.x_finish, self.y_finish], self.thick)
+        pygame.draw.rect(screen, self.color, [self.x_pos, self.y_pos,
+                                              self.width, self.height])
+    
+    def hitbox(self):
+        self.hitbox = pygame.Rect(self.x_pos, self.y_pos,
+                                  self.width, self.height)
+        
+    def checkcollision(self, Ahitbox):
+        if(pygame.Rect.colliderect(self.hitbox, Ahitbox)):
+            return True
+        else:
+            return False
 
 #---------------------------------------------------------------------------------------
         
@@ -115,22 +143,40 @@ screen.fill(WHITE)
 
 block = Block(0, 0, 15, 40)
 player = Player()
-ball = Ball(300, 300, 15, 15)
-wall_1 = Wall(0, 0, 0, 600, 2)
-wall_2 = Wall(420, 0, 420, 600, 2)
-wall_3 = Wall(0, 0, 422, 0, 2)
+ball = Ball(150, 150, 15, 15)
+wall_1 = Wall(0, 50, 2, y_size)
+wall_2 = Wall(0, 50, x_size, 2)
+wall_3 = Wall(x_size - 2, 50, 2, y_size)
 
 def start(): # 시작 함수
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             roop = False
 
-    player.move()
-    ball.move()
+    keys = pygame.key.get_pressed()
+    if(keys[pygame.K_LEFT]):
+        player.move(-15)
+        player.hitbox(-15)
+    elif(keys[pygame.K_RIGHT]):
+        player.move(15)
+        player.hitbox(15)
     
+    ballspeed = [2, 2]
+    ball.move(ballspeed[0], ballspeed[1])
+    ball.hitbox(ballspeed[0], ballspeed[1])
+    if(ball.checkcollision(wall_1.hitbox) is True):
+        ballspeed[0] *= -1
+    if(ball.checkcollision(wall_2.hitbox) is True):
+        ballspeed[1] *= -1
+    if(ball.checkcollision(wall_3.hitbox) is True):
+        ballspeed[0] *= -1
+
     screen.fill(WHITE)
     player.draw()
     ball.draw()
+    wall_1.draw()
+    wall_2.draw()
+    wall_3.draw()
     pygame.display.flip() # 업데이트 함수
     clock.tick(60)
 
