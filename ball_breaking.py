@@ -52,6 +52,25 @@ class Block(Object):
 class Ball(Object):
     def __init__(self, color, x_pos, y_pos, width, height):
         super().__init__(color, x_pos, y_pos, width, height)
+        
+    def checkreflect(self, Ahitbox):
+        if (Ahitbox.hitbox.right == self.hitbox.left or
+            Ahitbox.hitbox.left == self.hitbox.right):
+            for dy1 in range(1, Ahitbox.hitbox.height):
+                for dy2 in range(1, self.hitbox.height):
+                    if (Ahitbox.hitbox.y + dy1 == self.hitbox.y + dy2):
+                        return "X"
+                    else:
+                        continue
+                        
+        if (Ahitbox.hitbox.bottom == self.hitbox.top or
+            Ahitbox.hitbox.top == self.hitbox.bottom):
+            for dx1 in range(1, Ahitbox.hitbox.width):
+                for dx2 in range(1, self.hitbox.width):
+                    if (Ahitbox.hitbox.x + dx1 == self.hitbox.x + dx2):
+                        return "Y"
+                    else:
+                        continue
 
 class Wall(Object):
     def __init__(self, color, x_pos, y_pos, width, height):
