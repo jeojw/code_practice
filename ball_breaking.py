@@ -27,7 +27,7 @@ class Object(object):
         self.hitbox.x = self.x_pos
         self.hitbox.y = self.y_pos
 
-    def checkcollidrect(self, Ahitbox):
+    def checkcollision(self, Ahitbox):
         if(pygame.Rect.colliderect(self.hitbox, Ahitbox)):
             return True
         else:
@@ -52,25 +52,17 @@ class Block(Object):
 class Ball(Object):
     def __init__(self, color, x_pos, y_pos, width, height):
         super().__init__(color, x_pos, y_pos, width, height)
+        self.speed = [1, 2]
         
-    def checkreflect(self, Ahitbox):
-        if (Ahitbox.hitbox.right == self.hitbox.left or
-            Ahitbox.hitbox.left == self.hitbox.right):
-            for dy1 in range(1, Ahitbox.hitbox.height):
-                for dy2 in range(1, self.hitbox.height):
-                    if (Ahitbox.hitbox.y + dy1 == self.hitbox.y + dy2):
-                        return "X"
-                    else:
-                        continue
-                        
-        if (Ahitbox.hitbox.bottom == self.hitbox.top or
-            Ahitbox.hitbox.top == self.hitbox.bottom):
-            for dx1 in range(1, Ahitbox.hitbox.width):
-                for dx2 in range(1, self.hitbox.width):
-                    if (Ahitbox.hitbox.x + dx1 == self.hitbox.x + dx2):
-                        return "Y"
-                    else:
-                        continue
+    def reflect(self, Ahitbox):
+        dx = abs(self.hitbox.right - Ahitbox.hitbox.left)
+        dy = abs(self.hitbox.top - Ahitbox.hitbox.bottom)
+        
+        if(self.checkcollision(Ahitbox.hitbox)): #겹치는 사각형에서 가로가 길면 위아래로 반사, 세로가 길면 양옆으로 반사하도록 
+            if (dx > dy): 
+                return "Y"
+            if (dx < dy):
+                return "X"
 
 class Wall(Object):
     def __init__(self, color, x_pos, y_pos, width, height):
@@ -98,20 +90,6 @@ x_pos = 100
 global y_pos
 y_pos = 500
 
-screen.fill(WHITE)
-
-blocklist = []
-for i in range(2, 7):
-    for j in range(2, 9):
-        blocklist.append(Block(GREEN, 2 + 41 * j, 52 + 16 * i, 40, 15))
-player = Player(BLUE, 100, 500, 60, 15)
-ball = Ball(RED, 200, 200, 15, 15)
-ballspeed = [1, 2]
-wall_1 = Wall(BLACK, 0, 50, 2, y_size)
-wall_2 = Wall(BLACK, 0, 50, x_size, 2)
-wall_3 = Wall(BLACK, x_size - 2, 50, 2, y_size)
-wall_4 = Wall(BLACK, 0, y_size - 2, x_size, 2)
-
 gulimfont = pygame.font.SysFont('굴림', 70)
 
 def write(Text, color, x_pos, y_pos):
@@ -131,6 +109,20 @@ def fail(curscore):
     write('Y / N', BLACK, x_size / 2, 410)
 
 def rungame(): # 시작 함수
+    screen.fill(WHITE)
+
+    blocklist = []
+    for i in range(2, 7):
+        for j in range(2, 9):
+            blocklist.append(Block(GREEN, 2 + 41 * j, 52 + 16 * i, 40, 15))
+    player = Player(BLUE, 100, 500, 60, 15)
+    ball = Ball(RED, 200, 200, 15, 15)
+    ballspeed = [1, 2]
+    wall_1 = Wall(BLACK, 0, 50, 2, y_size)
+    wall_2 = Wall(BLACK, 0, 50, x_size, 2)
+    wall_3 = Wall(BLACK, x_size - 2, 50, 2, y_size)
+    wall_4 = Wall(BLACK, 0, y_size - 2, x_size, 2)
+    
     roop = True
     score = 0
     fps = 60
@@ -151,14 +143,18 @@ def rungame(): # 시작 함수
         ball.move(ballspeed[0], ballspeed[1])
         ball.updatehitbox(ballspeed[0], ballspeed[1])
 
-        if(ball.checkcollidrect(wall_1.hitbox) or
-           ball.checkcollidrect(wall_3.hitbox)):
+        if(ball.checkcollision(wall_1.hitbox) or
+           ball.checkcollision(wall_3.hitbox)):
             ballspeed[0] *= -1
-        if(ball.checkcollidrect(wall_2.hitbox) or
-           ball.checkcollidrect(player.hitbox)):
+        if(ball.checkcollision(wall_2.hitbox) or
+           ball.checkcollision(player.hitbox)):
             ballspeed[1] *= -1
         for b in blocklist:
-            if(ball.checkcollidrect(b.hitbox)):
+            if(ball.reflect(b) == "X"):
+                ballspeed[0] *= -1
+                score += 1
+                blocklist.remove(b)
+            if(ball.reflect(b) == "Y"):
                 ballspeed[1] *= -1
                 score += 1
                 blocklist.remove(b)
@@ -177,7 +173,7 @@ def rungame(): # 시작 함수
         wall_4.draw()
         for b in blocklist:
             b.draw()
-        if(ball.checkcollidrect(wall_4.hitbox)):
+        if(ball.checkcollision(wall_4.hitbox)):
             ballspeed[0] = 0
             ballspeed[1] = 0
             fail(score)
