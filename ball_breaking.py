@@ -1,6 +1,4 @@
 import pygame
-import sys
-import time
 
 class Object(object):
     def __init__(self, color, x_pos, y_pos, width, height):
@@ -13,11 +11,11 @@ class Object(object):
                                   self.width, self.height)
         self.poslist = [self.hitbox.left, self.hitbox.right,
                         self.hitbox.top, self.hitbox.bottom]
-        
+
     def draw(self):
         pygame.draw.rect(screen, self.color, [self.x_pos, self.y_pos,
                                               self.width, self.height])
-    
+
     def move(self, x_pos, y_pos):
         self.x_pos += x_pos
         self.y_pos += y_pos
@@ -42,8 +40,8 @@ class Player(Object):
 
         if(self.x_pos < 2):
             self.x_pos = 2
-        elif(self.x_pos > 420 - self.width):
-            self.x_pos = 420 - self.width
+        elif(self.x_pos > 452 - self.width):
+            self.x_pos = 452 - self.width
 
 class Block(Object):
     def __init__(self, color, x_pos, y_pos, width, height):
@@ -55,14 +53,44 @@ class Ball(Object):
         self.speed = [1, 2]
         
     def reflect(self, Ahitbox):
-        dx = abs(self.hitbox.right - Ahitbox.hitbox.left)
-        dy = abs(self.hitbox.top - Ahitbox.hitbox.bottom)
+        dx1 = abs(self.hitbox.right - Ahitbox.hitbox.left)
+        dx2 = abs(self.hitbox.left - Ahitbox.hitbox.right)
+        dy1 = abs(self.hitbox.top - Ahitbox.hitbox.bottom)
+        dy2 = abs(self.hitbox.bottom - Ahitbox.hitbox.top)
         
-        if(self.checkcollision(Ahitbox.hitbox)): #겹치는 사각형에서 가로가 길면 위아래로 반사, 세로가 길면 양옆으로 반사하도록 
-            if (dx > dy): 
-                return "Y"
-            if (dx < dy):
-                return "X"
+        selfpos = [self.hitbox.centerx, self.hitbox.centery]
+        Apos = [Ahitbox.hitbox.centerx, Ahitbox.hitbox.centery]
+        vector = ["X", "Y", "S"]
+        
+        if(self.checkcollision(Ahitbox.hitbox)):
+            if(selfpos[0] > Apos[0] and selfpos[1] > Apos[1]):
+                if(dy1 > dx2):
+                    return vector[0]
+                elif(dy1 < dx2):
+                    return vector[1]
+                else:
+                    return vector[2]
+            elif(selfpos[0] > Apos[0] and selfpos[1] < Apos[1]):
+                if(dy2 > dx2):
+                    return vector[0]
+                elif(dy2 < dx2):
+                    return vector[1]
+                else:
+                    return vector[2]
+            elif(selfpos[0] < Apos[0] and selfpos[1] > Apos[1]):
+                if(dy1 > dx1):
+                    return vector[0]
+                elif(dy1 < dx1):
+                    return vector[1]
+                else:
+                    return vector[2]
+            elif(selfpos[0] < Apos[0] and selfpos[1] < Apos[1]):
+                if(dy2 > dx1):
+                    return vector[0]
+                elif(dy2 < dx1):
+                    return vector[1]
+                else:
+                    return vector[2]
 
 class Wall(Object):
     def __init__(self, color, x_pos, y_pos, width, height):
@@ -113,7 +141,7 @@ def rungame(): # 시작 함수
 
     blocklist = []
     for i in range(2, 7):
-        for j in range(2, 9):
+        for j in range(1, 9):
             blocklist.append(Block(GREEN, 2 + 41 * j, 52 + 16 * i, 40, 15))
     player = Player(BLUE, 100, 500, 60, 15)
     ball = Ball(RED, 200, 200, 15, 15)
@@ -122,7 +150,7 @@ def rungame(): # 시작 함수
     wall_2 = Wall(BLACK, 0, 50, x_size, 2)
     wall_3 = Wall(BLACK, x_size - 2, 50, 2, y_size)
     wall_4 = Wall(BLACK, 0, y_size - 2, x_size, 2)
-    
+
     roop = True
     score = 0
     fps = 60
@@ -146,8 +174,7 @@ def rungame(): # 시작 함수
         if(ball.checkcollision(wall_1.hitbox) or
            ball.checkcollision(wall_3.hitbox)):
             ballspeed[0] *= -1
-        if(ball.checkcollision(wall_2.hitbox) or
-           ball.checkcollision(player.hitbox)):
+        if(ball.checkcollision(wall_2.hitbox)):
             ballspeed[1] *= -1
         for b in blocklist:
             if(ball.reflect(b) == "X"):
@@ -158,7 +185,19 @@ def rungame(): # 시작 함수
                 ballspeed[1] *= -1
                 score += 1
                 blocklist.remove(b)
-                
+            if(ball.reflect(b) == "S"):
+                ballspeed[0] *= -1
+                ballspeed[1] *= -1
+                score += 1
+                blocklist.remove(b)
+        if(ball.reflect(player) == "X"):
+            ballspeed[0] *= -1
+        if(ball.reflect(player) == "Y"):
+            ballspeed[1] *= -1
+        if(ball.reflect(player) == "S"):
+            ballspeed[0] *= -1
+            ballspeed[1] *= -1
+
         screen.fill(WHITE)
         gulimfont = pygame.font.SysFont('굴림', 70)
         curscore = gulimfont.render('score : ' + str(score), 1, BLACK)
@@ -180,7 +219,7 @@ def rungame(): # 시작 함수
             if(keys[pygame.K_y]):
                 pygame.init() ##??
             if(keys[pygame.K_n]):
-                pygame.quit()
+                break
         if(len(blocklist) == 0):
             ballspeed[0] = 0
             ballspeed[1] = 0
