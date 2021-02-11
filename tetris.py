@@ -27,7 +27,7 @@ class Board(object):
                     continue
                 if not (self.isOnBoard(x + int(mino.boxx) + adjX, y + int(mino.boxy) + adjY)):
                     return False
-                if self.board[x + int(mino.boxx) + adjX][y + int(mino.boxy) + adjY] != self.image:
+                if (self.board[x + int(mino.boxx) + adjX][y + int(mino.boxy) + adjY] != self.image):
                     return False
         return True
     
@@ -72,10 +72,14 @@ class Mino(object):
         else:
             self.boxx = x_pos
         if (y_pos is None):
-            self.boxy = -5
+            self.boxy = 0
         else:
             self.boxy = y_pos
         self.exist = True
+
+    def initpos(self):
+        self.boxx = int(boardx / 2) - int(Templatex / 2)
+        self.boxy = 0
 
     def move(self, x_pos, y_pos=None):
         self.boxx += x_pos
@@ -246,7 +250,7 @@ def convertpixel(boardx, boardy):
 
     return pixelx, pixely
 
-def write(Text, color, x_pos, y_pos):
+def write(font, Text, color, x_pos, y_pos):
     surface = font.render(Text, True, color)
     rect = surface.get_rect()
     rect.center = (x_pos, y_pos)
@@ -255,8 +259,8 @@ def write(Text, color, x_pos, y_pos):
 def StartScreen():
     while True:
         screen.fill(WHITE)
-        write('Tetris', BLACK, x_size / 2, y_size / 2)
-        write('Press S!', BLACK, x_size / 2, y_size * (2 / 3))
+        write(bigfont, 'Tetris', BLACK, x_size / 2, y_size / 2)
+        write(bigfont, 'Press S!', BLACK, x_size / 2, y_size * (2 / 3))
         pygame.display.update()
         
         for event in pygame.event.get():
@@ -265,9 +269,9 @@ def StartScreen():
                     return False
 
 def GameoverScreen():
-    write('Stage Fail!!!', BLACK, x_size / 2, 200)
-    write('Try Again?', BLACK, x_size / 2, 270)
-    write('Y / N', BLACK, x_size / 2, 340)
+    write(bigfont, 'GameOver!!!', BLUE, x_size / 2, 200)
+    write(bigfont, 'Try Again?', BLUE, x_size / 2, 270)
+    write(bigfont, 'Y / N', BLUE, x_size / 2, 340)
     pygame.display.update()
     pygame.time.wait(500)
     
@@ -290,12 +294,11 @@ def rungame():
     while True:
         if (FallingMino.exist == False):
             FallingMino = NextMino
-            FallingMino.boxx = int(boardx / 2) - int(Templatex / 2)
-            FallingMino.boxy = -5
-            NextMino = Mino(-4.8, 2)
+            FallingMino.initpos()
+            NextMino = Mino(-4.8, 1)
 
-            if not (GameBoard.isValiedPosition(FallingMino)):
-                return
+            if (GameBoard.isValiedPosition(FallingMino) is False):
+                break
 
         FallingMino.move(0)
         for event in pygame.event.get():
@@ -320,7 +323,7 @@ def rungame():
                         if not (GameBoard.isValiedPosition(FallingMino, adjY=i)):
                             break
                     FallingMino.boxy += i - 1
-                elif (event.key == pygame.K_q):
+                elif (event.key == pygame.K_ESCAPE):
                     pygame.quit()
                     sys.exit()
         
@@ -329,29 +332,31 @@ def rungame():
             curscore += GameBoard.removeCompliteLine()
             FallingMino.exist = False
             
-        screen.fill(RED)
+        screen.fill(GRAY)
         GameBoard.drawboard()
         NextMino.drawmino()
         if (FallingMino.exist != False):
             FallingMino.drawmino()
-        write('next', BLACK, 70, 90)
-        write('mino:', BLACK, 85, 130)
-        write('score:' + str(curscore), BLACK, 450, 40)
+        write(smallfont, 'next mino:', BLACK, 90, 90)
+        write(smallfont, 'score:' + str(curscore), BLACK, 70, 40)
 
         pygame.display.flip()
         clock.tick(FPS)
 
 def main():
-    global clock, screen, font
+    global clock, screen, bigfont, smallfont
     pygame.init()
     clock = pygame.time.Clock()
     screen = pygame.display.set_mode((x_size, y_size))
-    font = pygame.font.SysFont('굴림', 70)
+    bigfont = pygame.font.SysFont('굴림', 70)
+    smallfont = pygame.font.SysFont('굴림', 40)
     
     pygame.display.set_caption("Tetris")
     
     StartScreen()
-    rungame()
+    while True:
+        rungame()
+        GameoverScreen()
 
 if (__name__ == '__main__'):
     main()
