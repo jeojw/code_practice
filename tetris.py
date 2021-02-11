@@ -118,10 +118,10 @@ RED  = (255,  0,  0)
 GRAY = (185, 185, 185)
 
 FPS = 10
-pixel = 40
-boardx = 10
-boardy = 18
-gameboardx = 400
+pixel = 30
+boardx = 13
+boardy = 24
+gameboardx = 390
 gameboardy = 720
 x_size = 600
 y_size = 780
@@ -260,18 +260,26 @@ def StartScreen():
     while True:
         screen.fill(WHITE)
         write(bigfont, 'Tetris', BLACK, x_size / 2, y_size / 2)
-        write(bigfont, 'Press S!', BLACK, x_size / 2, y_size * (2 / 3))
+        write(bigfont, 'Press S!', BLACK, x_size / 2, 450)
         pygame.display.update()
         
         for event in pygame.event.get():
+            if (event.type == pygame.QUIT):
+                pygame.quit()
+                sys.exit()
+
             if (event.type == pygame.KEYDOWN):
                 if (event.key == pygame.K_s):
                     return False
+                elif (event.type == pygame.K_ESCAPE):
+                    pygame.quit()
+                    sys.exit()
 
 def GameoverScreen():
-    write(bigfont, 'GameOver!!!', BLUE, x_size / 2, 200)
-    write(bigfont, 'Try Again?', BLUE, x_size / 2, 270)
-    write(bigfont, 'Y / N', BLUE, x_size / 2, 340)
+    screen.fill(GRAY)
+    write(bigfont, 'GameOver!!!', BLUE, x_size / 2, 300)
+    write(bigfont, 'Try Again?', BLUE, x_size / 2, 370)
+    write(bigfont, 'Y / N', BLUE, x_size / 2, 440)
     pygame.display.update()
     pygame.time.wait(500)
     
@@ -288,14 +296,14 @@ def rungame():
     
     GameBoard = Board()
     FallingMino = Mino()
-    NextMino = Mino(-4.8, 2)
+    NextMino = Mino(-6, 1.5)
     curscore = 0
     
     while True:
         if (FallingMino.exist == False):
             FallingMino = NextMino
             FallingMino.initpos()
-            NextMino = Mino(-4.8, 1)
+            NextMino = Mino(-6, 1.5)
 
             if (GameBoard.isValiedPosition(FallingMino) is False):
                 break
