@@ -2,52 +2,108 @@ import pygame
 import sys
 import random
 
+class Board(object):
+    def __init__(self):
+        self.board = []
+        tmpimage = pygame.image.load('C:/Users/jeawo/OneDrive/바탕 화면/sprites/display.png')
+        self.image = pygame.transform.scale(tmpimage, (pixel, pixel))
+        
+        for dx in range(boardx):
+            self.board.append([self.image] * boardy) #-> board[boardy][boardx]
+
+    def addmino(self, mino):
+        for x in range(Templatex):
+            for y in range(Templatey):
+                if (Shapedic[mino.shape][mino.rotation][y][x] != BLANK):
+                    self.board[x + int(mino.boxx)][y + int(mino.boxy)] = mino.image
+                    
+    def isOnBoard(self, x, y):
+        return x >= 0 and x < boardx and y < boardy
+    
+    def isValiedPosition(self, mino, adjX=0, adjY=0):
+        for x in range(Templatex):
+            for y in range(Templatey):
+                if (Shapedic[mino.shape][mino.rotation][y][x] == BLANK):
+                    continue
+                if not (self.isOnBoard(x + int(mino.boxx) + adjX, y + int(mino.boxy) + adjY)):
+                    return False
+                if self.board[x + int(mino.boxx) + adjX][y + int(mino.boxy) + adjY] != self.image:
+                    return False
+        return True
+    
+    def isCompleteLine(self, y):
+        for x in range(boardx):
+            if (self.board[x][y] == self.image):
+                return False
+        return True
+                
+    def removeCompliteLine(self):
+        numLinesRemoved = 0
+        y = boardy - 1
+        while (y >= 0):
+            if (self.isCompleteLine(y)):
+                for pullDownY in range(y, 0, -1):
+                    for x in range(boardx):
+                        self.board[x][pullDownY] = self.board[x][pullDownY - 1]
+                for x in range(boardx):
+                    self.board[x][0] = self.image
+                numLinesRemoved += 1
+            else:
+                y -= 1
+                
+        return numLinesRemoved
+    
+    def drawboard(self):
+        for x in range(boardx):
+            for y in range(boardy):
+                screen.blit(self.board[x][y], (xmargin + x * pixel,
+                                               ymargin + y * pixel))
+
 class Mino(object):
-    def __init__(self, image, x_pos=None, y_pos=None):
+    def __init__(self, x_pos=None, y_pos=None):
         shape = random.choice(list(Shapedic.keys()))
+        image = random.choice(ColorList)
         self.shape = shape
         self.rotation = random.randint(0, len(Shapedic[self.shape]) - 1)
         tmpimage = pygame.image.load(image)
         self.image = pygame.transform.scale(tmpimage, (pixel, pixel))
         if (x_pos is None):
-            self.x_pos = int(gameboardx / 2)
+            self.boxx = int(boardx / 2) - int(Templatex / 2)
         else:
-            self.x_pos = x_pos
+            self.boxx = x_pos
         if (y_pos is None):
-            self.y_pos = -10
+            self.boxy = -5
         else:
-            self.y_pos = y_pos
-            
-        self.curmino = Shapedic[self.shape][self.rotation]
-        self.location = []
-        self.hitboxlist = []
-        for x in range(Templatex):
-            for y in range(Templatey):
-                if (self.curmino[y][x] != BLANK):
-                    self.location.append([x, y])
-
-        for rects in self.location:
-            self.hitboxlist.append(self.image.get_rect(topleft=(self.x_pos + rects[0] * pixel,
-                                                                self.y_pos + rects[1] * pixel)))
+            self.boxy = y_pos
+        self.exist = True
 
     def move(self, x_pos, y_pos=None):
-        for hitbox in self.hitboxlist:
-            hitbox.x += x_pos
-            if (y_pos is None):
-                hitbox.y += pixel / 10
-            else:
-                hitbox.y += y_pos
+        self.boxx += x_pos
+        if (y_pos is None):
+            self.boxy += 0.5
+        else:
+            self.boxy += y_pos
 
-    def spin(self):
-        self.rotation += 1
-        if (self.rotation == len(Shapedic[self.shape])):
-            self.rotation = 0
+    def spin(self, rotation=None):
+        if(rotation is None):
+            self.rotation += 1
+            if (self.rotation == len(Shapedic[self.shape])):
+                self.rotation = 0
+        else:
+            self.rotation += rotation
+            if (self.rotation < 0):
+                self.rotation = len(Shapedic[self.shape]) - 1
 
     def drawmino(self):
-        for block in self.hitboxlist:
-            screen.blit(self.image, block)
+        curmino = Shapedic[self.shape][self.rotation]
+        pixelx, pixely = convertpixel(self.boxx, self.boxy)
+        
+        for x in range(Templatex):
+            for y in range(Templatey):
+                if (curmino[y][x] != BLANK):
+                    screen.blit(self.image, (pixelx + (x * pixel),
+                                             pixely + (y * pixel)))
 
-                    
 pygame.init()
 
 BLACK= ( 0,  0,  0)
@@ -57,27 +113,20 @@ GREEN= ( 0,255,  0)
 RED  = (255,  0,  0)
 GRAY = (185, 185, 185)
 
-size = [600, 800]
-screen = pygame.display.set_mode(size)
-
-pygame.display.set_caption("Tetris")
-
-roop = True
 FPS = 10
-clock = pygame.time.Clock()
 pixel = 40
-gameboardx = 440
+boardx = 10
+boardy = 18
+gameboardx = 400
 gameboardy = 720
-xmargin = size[0] - gameboardx
-ymargin = size[1] - gameboardy
+x_size = 600
+y_size = 780
+xmargin = x_size - gameboardx
+ymargin = y_size - gameboardy
 BLANK = '.'
 Templatex = 5
 Templatey = 5
 font = pygame.font.SysFont('굴림', 70)
-
-displayimage = pygame.image.load('display.png')
-scaledisplay = pygame.transform.scale(displayimage, (40, 40))
-display = scaledisplay.get_rect()
 
 IminoTemplate = [['..o..',
                   '..o..',
@@ -189,34 +238,65 @@ Shapedic = {'I': IminoTemplate,
             'T': TminoTemplate,
             'O': OminoTemplate}
 
-def SetGameBoard():
-    board = []
-    for dy in range(0, int(gameboardy / pixel) + 1):
-        board.append([BLANK] * (int(gameboardx / pixel) + 1))
-
-    return board
+ColorList = ['C:/Users/jeawo/OneDrive/바탕 화면/sprites/block' + str(i) + '.png' for i in range(1, 7)]
 
 def convertpixel(boardx, boardy):
     pixelx = xmargin + (boardx * pixel)
     pixely = ymargin + (boardy * pixel)
 
     return pixelx, pixely
+
+def write(Text, color, x_pos, y_pos):
+    surface = font.render(Text, True, color)
+    rect = surface.get_rect()
+    rect.center = (x_pos, y_pos)
+    screen.blit(surface, rect)
+
+def StartScreen():
+    while True:
+        screen.fill(WHITE)
+        write('Tetris', BLACK, x_size / 2, y_size / 2)
+        write('Press S!', BLACK, x_size / 2, y_size * (2 / 3))
+        pygame.display.update()
+        
+        for event in pygame.event.get():
+            if (event.type == pygame.KEYDOWN):
+                if (event.key == pygame.K_s):
+                    return False
+
+def GameoverScreen():
+    write('Stage Fail!!!', BLACK, x_size / 2, 200)
+    write('Try Again?', BLACK, x_size / 2, 270)
+    write('Y / N', BLACK, x_size / 2, 340)
+    pygame.display.update()
+    pygame.time.wait(500)
     
-def DrawBoard():
-    for dy in range(0, int(gameboardy / pixel) + 1):
-            for dx in range(0, int(gameboardx / pixel) + 1):
-                screen.blit(scaledisplay, (xmargin + dx * pixel,
-                                           ymargin + dy * pixel))
+    for event in pygame.event.get():
+        if (event.type == pygame.KEYDOWN):
+            if (event.key == pygame.K_y):
+                return True
+            elif (event.key == pygame.K_n):
+                pygame.quit()
+                sys.exit()     
 
 def rungame():
     pygame.init()
     
-    shape = random.choice(list(Shapedic.keys()))
-    FallingMino = Mino('test.png')
-    NextMino = Mino('test.png')
+    GameBoard = Board()
+    FallingMino = Mino()
+    NextMino = Mino(-4.8, 2)
+    curscore = 0
     
     while True:
-        screen.fill(RED)
+        if (FallingMino.exist == False):
+            FallingMino = NextMino
+            FallingMino.boxx = int(boardx / 2) - int(Templatex / 2)
+            FallingMino.boxy = -5
+            NextMino = Mino(-4.8, 2)
+
+            if not (GameBoard.isValiedPosition(FallingMino)):
+                return
+
         FallingMino.move(0)
         for event in pygame.event.get():
             if (event.type == pygame.QUIT):
@@ -224,22 +304,54 @@ def rungame():
                 sys.exit()
             
             if (event.type == pygame.KEYDOWN):
-                if (event.key == pygame.K_LEFT):
-                    FallingMino.move(-pixel)
-                elif (event.key == pygame.K_RIGHT):
-                    FallingMino.move(pixel)
+                if (event.key == pygame.K_LEFT) and (GameBoard.isValiedPosition(FallingMino, adjX=-1)):
+                    FallingMino.move(-1)
+                elif (event.key == pygame.K_RIGHT) and (GameBoard.isValiedPosition(FallingMino, adjX=1)):
+                    FallingMino.move(1)
                 elif (event.key == pygame.K_DOWN):
-                    FallingMino.move(0, pixel / 2)
+                    if (GameBoard.isValiedPosition(FallingMino, adjY=1)):
+                        FallingMino.move(0, 1)
                 elif (event.key == pygame.K_g):
                     FallingMino.spin()
-
-        DrawBoard()
-        FallingMino.drawmino()
+                    if not (GameBoard.isValiedPosition(FallingMino)):
+                        FallingMino.spin(-1)
+                elif (event.key == pygame.K_SPACE):
+                    for i in range(1, boardy):
+                        if not (GameBoard.isValiedPosition(FallingMino, adjY=i)):
+                            break
+                    FallingMino.boxy += i - 1
+                elif (event.key == pygame.K_q):
+                    pygame.quit()
+                    sys.exit()
+        
+        if not (GameBoard.isValiedPosition(FallingMino, adjY=1)):
+            GameBoard.addmino(FallingMino)
+            curscore += GameBoard.removeCompliteLine()
+            FallingMino.exist = False
+            
+        screen.fill(RED)
+        GameBoard.drawboard()
+        NextMino.drawmino()
+        if (FallingMino.exist != False):
+            FallingMino.drawmino()
+        write('next', BLACK, 70, 90)
+        write('mino:', BLACK, 85, 130)
+        write('score:' + str(curscore), BLACK, 450, 40)
 
         pygame.display.flip()
         clock.tick(FPS)
 
-    pygame.quit()
-
-if __name__ == '__main__':
+def main():
+    global clock, screen, font
+    pygame.init()
+    clock = pygame.time.Clock()
+    screen = pygame.display.set_mode((x_size, y_size))
+    font = pygame.font.SysFont('굴림', 70)
+    
+    pygame.display.set_caption("Tetris")
+    
+    StartScreen()
     rungame()
+
+if (__name__ == '__main__'):
+    main()
