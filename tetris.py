@@ -62,7 +62,20 @@ class Board(object):
 class Mino(object):
     def __init__(self, x_pos=None, y_pos=None):
         shape = random.choice(list(Shapedic.keys()))
-        image = random.choice(ColorList)
+        if (shape == 'I'):
+            image = 'C:/Users/jeawo/OneDrive/바탕 화면/sprites/block1.png'
+        elif (shape == 'L'):
+            image = 'C:/Users/jeawo/OneDrive/바탕 화면/sprites/block2.png'
+        elif (shape == 'J'):
+            image = 'C:/Users/jeawo/OneDrive/바탕 화면/sprites/block3.png'
+        elif (shape == 'S'):
+            image = 'C:/Users/jeawo/OneDrive/바탕 화면/sprites/block4.png'
+        elif (shape == 'Z'):
+            image = 'C:/Users/jeawo/OneDrive/바탕 화면/sprites/block5.png'
+        elif (shape == 'T'):
+            image = 'C:/Users/jeawo/OneDrive/바탕 화면/sprites/block6.png'
+        elif (shape == 'O'):
+            image = 'C:/Users/jeawo/OneDrive/바탕 화면/sprites/block7.png'
         self.shape = shape
         self.rotation = random.randint(0, len(Shapedic[self.shape]) - 1)
         tmpimage = pygame.image.load(image)
@@ -110,19 +123,19 @@ class Mino(object):
 
 pygame.init()
 
-BLACK= ( 0,  0,  0)
+BLACK= (  0,   0,   0)
 WHITE= (255, 255, 255)
-BLUE = ( 0,  0,255)
-GREEN= ( 0,255,  0)
-RED  = (255,  0,  0)
+BLUE = (  0,   0, 255)
+GREEN= (  0, 255,   0)
+RED  = (255,   0,   0)
 GRAY = (185, 185, 185)
 
 FPS = 10
 pixel = 30
 boardx = 13
 boardy = 24
-gameboardx = 390
-gameboardy = 720
+gameboardx = boardx * pixel
+gameboardy = boardy * pixel
 x_size = 600
 y_size = 780
 xmargin = x_size - gameboardx
@@ -130,7 +143,6 @@ ymargin = y_size - gameboardy
 BLANK = '.'
 Templatex = 5
 Templatey = 5
-font = pygame.font.SysFont('굴림', 70)
 
 IminoTemplate = [['..o..',
                   '..o..',
