@@ -1,4 +1,4 @@
-import pygame
+iimport pygame
 import sys
 
 temp_h = -150
@@ -26,18 +26,16 @@ class Player(object):
         self.isOnGround = True
         self.index = 0
         self.cur = 0
-
-        rightstatic = [pygame.image.load('static.png')]
+        
+        rightstatic = [pygame.image.load('char_static.png')]
         rightdead = [pygame.image.load('get_attack_3.png')]
-        rightwalk = [pygame.image.load('walk-' + str(i) + '.png') for i in range(1, 5)]
-        rightsting = [pygame.image.load('sting_' + str(i) + '.png') for i in range(1, 3)]
+        rightwalk = [pygame.image.load('char_walk_' + str(i) + '.png') for i in range(1, 4)]
         leftwalk = [pygame.transform.flip(rightwalks, True, 0) for rightwalks in rightwalk]
         leftstatic = [pygame.transform.flip(rightstatic[0], True, 0)]
         leftdead = [pygame.transform.flip(rightdead[0], True, 0)]
-        leftsting = [pygame.transform.flip(rightstings, True, 0) for rightstings in rightsting]
 
-        self.rightlist = [rightstatic, rightwalk, rightsting, rightdead]
-        self.leftlist = [leftstatic, leftwalk, leftsting, leftdead]
+        self.rightlist = [rightstatic, rightwalk, rightdead]
+        self.leftlist = [leftstatic, leftwalk, leftdead]
         self.curlist = self.rightlist
         self.cursprite = self.curlist[self.cur][self.index]
         self.hitbox = self.cursprite.get_rect(topleft=(self.x_pos, self.y_pos))
@@ -61,7 +59,7 @@ class Player(object):
         hitbox = self.cursprite.get_rect(topleft=(self.x_pos, self.y_pos))
         
         if (self.isOnGround is False):
-            self.y_pos += GRAVITY 
+            self.y_pos += GRAVITY
         if (self.hitbox.bottom >= MAP_GROUND):
             hitbox.bottom = MAP_GROUND
             self.isOnGround = True
@@ -85,17 +83,12 @@ class Player(object):
             self.cur = 3
             self.dead = True
 
-        if (self.attack is True):
-            self.cur = 2
-        else:
-            self.cur = 0
             
         self.index += 1
         if (self.index >= len(self.curlist[self.cur])):
             self.index = 0
             
         self.cursprite = self.curlist[self.cur][self.index]
-        print(len(self.curlist[1]))
 
 class Enemy(object):
     def __init__(self):
