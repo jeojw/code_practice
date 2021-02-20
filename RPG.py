@@ -1,4 +1,4 @@
-iimport pygame
+import pygame
 import sys
 
 temp_h = -150
@@ -11,7 +11,7 @@ MAP_LIMIT_LEFT = 0
 MAP_LIMIT_RIGHT = 800
 
 class Player(object):
-    def __init__(self, x_pos, y_pos):
+    def __init__(self, x_pos, y_pos=None):
         self.HP = 1000
         self.ATK = 30
         self.DEF = 20
@@ -48,7 +48,7 @@ class Player(object):
         pass
 
     def draw(self):
-        Screen.blit(self.cursprite, (self.x_pos, self.y_pos))
+        Screen.blit(self.cursprite, (self.hitbox.x, self.hitbox.y))
 
     def drawStat(self):
         Length = self.HP / 5
@@ -56,17 +56,18 @@ class Player(object):
             pygame.draw.rect(Screen, RED, (10, 10, Length, 30))
 
     def update(self):
-        hitbox = self.cursprite.get_rect(topleft=(self.x_pos, self.y_pos))
+        self.hitbox.x = self.x_pos
+        self.hitbox.y = self.y_pos
         
         if (self.isOnGround is False):
             self.y_pos += GRAVITY
         if (self.hitbox.bottom >= MAP_GROUND):
-            hitbox.bottom = MAP_GROUND
+            self.hitbox.bottom = MAP_GROUND
             self.isOnGround = True
-        if (hitbox.left <= MAP_LIMIT_LEFT):
-            hitbox.left = MAP_LIMIT_LEFT
-        if (hitbox.right >= MAP_LIMIT_RIGHT):
-            hitbox.right = MAP_LIMIT_RIGHT
+        if (self.hitbox.left <= MAP_LIMIT_LEFT):
+            self.hitbox.left = MAP_LIMIT_LEFT
+        if (self.hitbox.right >= MAP_LIMIT_RIGHT):
+            self.hitbox.right = MAP_LIMIT_RIGHT
 
         if (self.direction == 'LEFT'):
             self.curlist = self.leftlist
@@ -83,7 +84,6 @@ class Player(object):
             self.cur = 3
             self.dead = True
 
-            
         self.index += 1
         if (self.index >= len(self.curlist[self.cur])):
             self.index = 0
@@ -120,7 +120,7 @@ Clock = pygame.time.Clock()
 mapimage = pygame.image.load('display.png')
 mapscale = pygame.transform.scale(mapimage, (800, 600))
 
-player = Player(300, 300)
+player = Player(300, MAP_GROUND - 64)
 
 while True:
     for event in pygame.event.get():
