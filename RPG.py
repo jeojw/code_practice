@@ -3,7 +3,7 @@ import sys
 
 temp_h = -150
 temp_t = 60
-JUMP_SPEED = 4 * temp_h / temp_t
+JUMP_SPEED = 60 * temp_h / temp_t
 GRAVITY = -80 * temp_h / (temp_t ** 2)
 MAP_GROUND = 465
 MAP_HEIGHT = 0
@@ -28,17 +28,25 @@ class Player(object):
         self.cur = 0
         
         rightstatic = [pygame.image.load('char_static.png')]
-        rightdead = [pygame.image.load('get_attack_3.png')]
+        rightdead = [pygame.image.load('char_dead.png')]
         rightwalk = [pygame.image.load('char_walk_' + str(i) + '.png') for i in range(1, 4)]
+        rightattack = [pygame.image.load('char_attack.png')]
         leftwalk = [pygame.transform.flip(rightwalks, True, 0) for rightwalks in rightwalk]
         leftstatic = [pygame.transform.flip(rightstatic[0], True, 0)]
         leftdead = [pygame.transform.flip(rightdead[0], True, 0)]
+        leftattack = [pygame.transform.flip(rightattack[0], True, 0)]
 
-        self.rightlist = [rightstatic, rightwalk, rightdead]
-        self.leftlist = [leftstatic, leftwalk, leftdead]
+        self.rightlist = [rightstatic, rightwalk, rightattack, rightdead]
+        self.leftlist = [leftstatic, leftwalk, leftattack, leftdead]
         self.curlist = self.rightlist
         self.cursprite = self.curlist[self.cur][self.index]
         self.hitbox = self.cursprite.get_rect(topleft=(self.x_pos, self.y_pos))
+        
+    def SetStat(self, HP, ATK, DEF, SPEED):
+        self.HP = HP
+        self.ATK = ATK
+        self.DEF = DEF
+        self.SPEED = SPEED
     
     def move(self, x_pos, y_pos):
         self.x_pos += x_pos
@@ -74,12 +82,14 @@ class Player(object):
 
         elif (self.direction == 'RIGHT'):
             self.curlist = self.rightlist
-            
         if (self.walk is True):
             self.cur = 1
         else:
             self.cur = 0
-
+        if (self.attack is True):
+            self.cur = 2
+        else:
+            self.cur = 0
         if (self.HP <= 0):
             self.cur = 3
             self.dead = True
@@ -98,10 +108,29 @@ class Boss(object):
     def __init__(self):
         pass
 
-class projectile(object):
-    def __init__(self):
-        pass
-
+class Bubble(object):
+    def __init__(self, x_pos, y_pos, ATK):
+        self.x_pos = x_pos
+        self.y_pos = y_pos
+        self.ATK = ATK
+        self.SPEED = (3, 4)
+        image = pygame.image.load('bubble.png')
+        self.image = pygame.transform.scale(image, (30, 30))
+        self.hitbox = self.image.get_rect(topleft=(self.x_pos, self.y_pos))
+        
+    def draw(self):
+        Screen.blit(self.image, (self.hitbox.x, self.hitbox.y))
+        
+    def move(self):
+        self.hitbox.x += self.SPEED[0]
+        
+        
+    def checkcollision(self, Enemy):
+        if (self.hitbox.colliderect(Enemy)):
+            return True
+        else:
+            return False
+    
 pygame.init() # pygame 초기화
 
 BLACK = (0, 0, 0)
@@ -121,15 +150,30 @@ mapimage = pygame.image.load('display.png')
 mapscale = pygame.transform.scale(mapimage, (800, 600))
 
 player = Player(300, MAP_GROUND - 64)
+Bubblelist = []
 
 while True:
+    Screen.blit(mapscale, (0, 0))
+    
     for event in pygame.event.get():
         if (event.type == pygame.QUIT):
             pygame.quit()
             sys.exit()
             
         if (event.type == pygame.KEYDOWN):
-            if (event.key == pygame.K_x):
+            if (event.key == pygame.K_LEFT):
+                player.attack = False
+                player.walk = True
+                player.direction = 'LEFT'
+            elif (event.key == pygame.K_RIGHT):
+                player.attack = False
+                player.walk = True
+                player.direction = 'RIGHT'
+            elif (event.key == pygame.K_UP):
+                player.walk = True
+                player.isOnGround = False
+                player.move(0, JUMP_SPEED)
+            elif (event.key == pygame.K_x):
                 player.walk = False
                 player.attack = True
             elif (event.key == pygame.K_ESCAPE):
@@ -144,29 +188,22 @@ while True:
             
             elif (event.key == pygame.K_x):
                 player.attack = False
-                player.walk = True
                 
-    keys = pygame.key.get_pressed()
-    if (keys[pygame.K_LEFT]):
-        player.attack = False
-        player.walk = True
-        player.direction = 'LEFT'
-        player.move(-player.SPEED, 0)
-        
-    elif (keys[pygame.K_RIGHT]):
-        player.attack = False
-        player.walk = True
-        player.direction = 'RIGHT'
-        player.move(player.SPEED, 0)
-    
-    elif (keys[pygame.K_UP]):
-        player.walk = True
-        player.isOnGround = False
-        player.move(0, JUMP_SPEED)
+    if (player.walk is True and player.attack is False):
+        if (player.direction == 'LEFT'):
+            player.move(-player.SPEED, 0)
+        elif (player.direction == 'RIGHT'):
+            player.move(player.SPEED, 0)
+            
+    if (player.attack is True):
+        Bubblelist.append(Bubble(player.hitbox.right, player.hitbox.y , player.ATK))
 
-    Screen.blit(mapscale, (0, 0))
     player.draw()
     player.drawStat()
     player.update()
+    if (len(Bubblelist) != 0):
+        for bubble in Bubblelist:
+            bubble.move()
+            bubble.draw()
     pygame.display.update()
     Clock.tick(FPS)
