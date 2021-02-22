@@ -1,4 +1,4 @@
-iimport pygame
+import pygame
 import sys
 
 temp_h = -150
