@@ -44,6 +44,7 @@ class Bubble(object):
 class Item(object):
     def __init__(self):
         pass
+    
 class Player(object):
     def __init__(self, x_pos, y_pos=None):
         '''
@@ -111,6 +112,24 @@ class Player(object):
         self.ATK += ATK
         self.DEF += DEF
         self.SPEED += SPEED
+    
+    def GetStat(self):
+        '''
+        플레이어 스텟 반환
+        '''
+        return [self.HP, self.ATK, self.DEF, self.SPEED]
+    
+    def GetPos(self):
+        '''
+        플레이어의 위치 반환
+        '''
+        return [self.hitbox.x, self.hitbox.y]
+    
+    def GetProjectiles(self):
+        '''
+        플레이어의 투사체 리스트 반환
+        '''
+        return self.projectilelist
         
     def checkcollision(self, Anathor):
         '''
@@ -398,7 +417,7 @@ class Enemy(object):
         self.isAttack = False
         self.HP -= (Player.ATK - self.DEF)
         Player.projectilelist.remove(bubble)
-        if (self.x_pos > Player.x_pos):
+        if (self.x_pos > Player.GetPos()[0]):
             self.direction = LEFT
             self.x_pos += self.GETATTACK
         else:
