@@ -1,21 +1,21 @@
-#include "MinHeap.h"
+#include "MaxHeap.h"
 #include <iostream>
 #define MAX 100
 using namespace std;
 
 template <typename T>
-MinHeap<T>::MinHeap(){
+MaxHeap<T>::MaxHeap(){
 	ary = new T[MAX];
 	size = 0;
 }
 
 template <typename T>
-MinHeap<T>::~MinHeap(){
+MaxHeap<T>::~MaxHeap(){
 	delete[] ary;
 }
 
 template <typename T>
-bool MinHeap<T>::IsEmpty() const{
+bool MaxHeap<T>::IsEmpty() const{
 	if (size == 0)
 		return true;
 	else
@@ -23,12 +23,12 @@ bool MinHeap<T>::IsEmpty() const{
 }
 
 template <typename T>
-int MinHeap<T>::GetSize() const{
+int MaxHeap<T>::GetSize() const{
 	return size;
 }
 
 template <typename T>
-int MinHeap<T>::Insert(const T& data){
+int MaxHeap<T>::Insert(const T& data){
 	if (size == 0){
 		ary[1] = data;
 		size++;
@@ -40,7 +40,7 @@ int MinHeap<T>::Insert(const T& data){
 		
 		int me = size;
 		while (me / 2 != 0){
-			if (ary[me / 2] >= data)
+			if (ary[me / 2] <= data)
 				Swap(&ary[me / 2], &ary[me]);
 		
 			me /= 2;
@@ -51,20 +51,20 @@ int MinHeap<T>::Insert(const T& data){
 }
 
 template <typename T>
-int MinHeap<T>::Delete(){
+int MaxHeap<T>::Delete(){
 	ary[1] = ary[size];
 	size--;
 	
 	int key = 1;
 	while (key < size){
-		if (ary[2] < ary[3]){
-			if (ary[key] > ary[key * 2])
+		if (ary[2] > ary[3]){
+			if (ary[key] < ary[key * 2])
 				Swap(&ary[key], &ary[key * 2]);
 
 			key *= 2;
 		}
 		else{
-			if (ary[key] > ary[key * 2 + 1])
+			if (ary[key] < ary[key * 2 + 1])
 				Swap(&ary[key], &ary[key * 2 + 1]);
 
 			key = 2 * key + 1;
@@ -75,20 +75,20 @@ int MinHeap<T>::Delete(){
 }
 
 template <typename T>
-void MinHeap<T>::Swap(T* a, T* b){
+void MaxHeap<T>::Swap(T* a, T* b){
 	T tmp = *a;
 	*a = *b;
 	*b = tmp;
 }
 
 template <typename T>
-void MinHeap<T>::Print(){
+void MaxHeap<T>::Print(){
 	for (int i = 1; i < size + 1; i++)
 		cout << ary[i] << " -> ";
 }
 
 /*int main(){
-	MinHeap<int> heap;
+	MaxHeap<int> heap;
 	
 	heap.Insert(4);
 	heap.Insert(7);
