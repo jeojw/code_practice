@@ -55,7 +55,7 @@ class Player(object):
         self.y_pos = y_pos
         self.HP = 1000
         self.ATK = 500
-        self.DEF = 20
+        self.DEF = 0
         self.SPEED = 10
         self.GETATTACK = 80 #피격당할 시 넉백되는 거리를 설정
 
@@ -125,6 +125,12 @@ class Player(object):
         '''
         return [self.hitbox.x, self.hitbox.y]
     
+    def GetSize(self):
+        '''
+        플레이어의 크기 반환
+        '''
+        return [self.hitbox.width ,self.hitbox.height]
+    
     def GetProjectiles(self):
         '''
         플레이어의 투사체 리스트 반환
@@ -145,28 +151,31 @@ class Player(object):
         '''
         왼쪽으로 걷는 상태를 설정하는 메서드
         '''
-        self.isWalk = True
-        self.isAttack = False
-        self.direction = LEFT
+        if (self.isDead is not True): # 만일 이 조건문이 없을 시 죽은 후에도 방향전환이 됨. 아래도 동일
+            self.isWalk = True
+            self.isAttack = False
+            self.direction = LEFT
         
     def rightwalk(self):
         '''
         오른쪽으로 걷는 상태를 설정하는 메서드
         '''
-        self.isWalk = True
-        self.isAttack = False
-        self.direction = RIGHT
+        if (self.isDead is not True):
+            self.isWalk = True
+            self.isAttack = False
+            self.direction = RIGHT
         
     def jump(self):
         '''
         플레이어의 점프 상태를 설정하는 메서드
         플레이어가 지면으로부터 붕 떠져있는 경우 더 이상 위로 올라가지 않게 수정
         '''
-        self.isOnGround = False
-        if (self.hitbox.bottom < MAP_GROUND):
-            self.y_pos += 0
-        else:
-            self.y_pos += JUMP_SPEED
+        if (self.isDead is not True):
+            self.isOnGround = False
+            if (self.hitbox.bottom < MAP_GROUND):
+                self.y_pos += 0
+            else:
+                self.y_pos += JUMP_SPEED
                 
     def attack(self):
         '''
@@ -189,7 +198,8 @@ class Player(object):
         self.isGetattack = True
         self.isWalk = False
         self.isAttack = False
-        if (self.x_pos > Enemy.x_pos):
+        self.HP -= Enemy.GetStat()[1]
+        if (self.x_pos > Enemy.GetPos()[0]):
             self.direction = LEFT
             self.x_pos += self.GETATTACK
         else:
@@ -218,9 +228,15 @@ class Player(object):
         
     def notGetattack(self):
         '''
-        플레이어의 피격 상태가 아님을 나타내는 메서드
+        플레이어가 피격 상태가 아님을 나타내는 메서드
         '''
         self.isGetattack = False
+        
+    def notDead(self):
+        '''
+        플레이어가 죽은 상태가 아님을 나타내는 메서드
+        '''
+        self.isDead = False
         
     def getItem(self, Item):
         '''
@@ -269,8 +285,8 @@ class Player(object):
             self.x_pos = MAP_LIMIT_LEFT
         if (self.hitbox.right >= MAP_LIMIT_RIGHT):
             self.x_pos = MAP_LIMIT_RIGHT - self.hitbox.width
-            
-        if (self.isWalk is True and self.isAttack is False):
+        
+        if (self.isWalk is True and self.isAttack is False and self.isDead is False):
             if (self.direction == LEFT):
                 self.x_pos += -self.SPEED
             elif (self.direction == RIGHT):
@@ -278,7 +294,7 @@ class Player(object):
         
         for Enemy in Enemylist:
             if (self.isHitbox is True):
-                if (self.checkcollision(Enemy) is True):
+                if (self.checkcollision(Enemy) is True and Enemy.isHitbox is True): #임시방편, 그러나 충돌판정은 유효해서 언제 버그가 터질지 모름......
                     self.getattack(Enemy)
                 else:
                     self.notGetattack()
@@ -340,7 +356,7 @@ class Enemy(object):
         
         rightstatic = [pygame.image.load('enemy_sprite/enemy_static.png')]
         rightdead = [pygame.image.load('char_sprite/char_dead.png')]
-        rightwalk = [pygame.image.load('char_sprite/char_walk_' + str(i) + '.png') for i in range(1, 4)]
+        rightwalk = [pygame.image.load('enemy_sprite/enemy_walk_' + str(i) + '.png') for i in range(1, 3)]
         rightattack = [pygame.image.load('char_sprite/char_attack.png')]
         rightgetattack = [pygame.image.load('char_sprite/char_get_attack.png')]
         leftwalk = [pygame.transform.flip(rightwalks, True, 0) for rightwalks in rightwalk]
@@ -367,6 +383,24 @@ class Enemy(object):
         self.DEF += DEF
         self.SPEED += SPEED
         
+    def GetStat(self):
+        '''
+        적의 스텟 반환
+        '''
+        return [self.HP, self.ATK, self.DEF, self.SPEED]
+    
+    def GetPos(self):
+        '''
+        적의 위치 반환
+        '''
+        return [self.hitbox.x, self.hitbox.y]
+    
+    def GetSize(self):
+        '''
+        적의 크기 반환
+        '''
+        return [self.hitbox.width ,self.hitbox.height]
+        
     def checkcollision(self, Anathor):
         if (pygame.Rect.colliderect(self.hitbox, Anathor.hitbox)):
             return True
@@ -377,29 +411,20 @@ class Enemy(object):
         '''
         왼쪽으로 걷는 상태를 설정하는 메서드
         '''
-        self.isWalk = True
-        self.isAttack = False
-        self.direction = LEFT
+        if (self.isDead is not True):
+            self.isWalk = True
+            self.isAttack = False
+            self.direction = LEFT
         
     def rightwalk(self):
         '''
         오른쪽으로 걷는 상태를 설정하는 메서드
         '''
-        self.isWalk = True
-        self.isAttack = False
-        self.direction = RIGHT
-        
-    def jump(self):
-        '''
-        적의 점프 상태를 설정하는 메서드
-        적이 지면으로부터 붕 떠져있는 경우 더 이상 위로 올라가지 않게 수정
-        '''
-        self.isOnGround = False
-        if (self.hitbox.bottom < MAP_GROUND):
-            self.y_pos += 0
-        else:
-            self.y_pos += JUMP_SPEED
-                
+        if (self.isDead is not True):
+            self.isWalk = True
+            self.isAttack = False
+            self.direction = RIGHT
+
     def attack(self):
         '''
         적의 공격 상태를 설정하는 메서드
@@ -415,7 +440,7 @@ class Enemy(object):
         self.isGetattack = True
         self.isWalk = False
         self.isAttack = False
-        self.HP -= (Player.ATK - self.DEF)
+        self.HP -= (Player.GetStat()[1] - self.DEF)
         Player.projectilelist.remove(bubble)
         if (self.x_pos > Player.GetPos()[0]):
             self.direction = LEFT
@@ -432,7 +457,7 @@ class Enemy(object):
         self.SPEED = 0
         self.GETATTACK = 0
         self.isHitbox = False
-
+        
     def notWalk(self):
         '''
         걷지 않도록 해주는 메서드
@@ -441,7 +466,7 @@ class Enemy(object):
         
     def notAttack(self):
         '''
-        \공격하지 않도록 해주는 메서드
+        공격하지 않도록 해주는 메서드
         '''
         self.isAttack = False
         
@@ -450,15 +475,21 @@ class Enemy(object):
         적의 피격 상태가 아님을 나타내는 메서드
         '''
         self.isGetattack = False
+        
+    def notDead(self):
+        '''
+        적이 죽은 상태가 아님을 나타내는 메서드
+        '''
+        self.isDead = False
     
     def AI(self, player):
         '''
         기본적의 적의 AI
         플레이어에 상태에 따라서 업데이트가 된다
         '''
-        distance = self.hitbox.centerx - player.hitbox.centerx #플레이어와 적과의 거리를 계산함
+        distance = self.hitbox.centerx - (player.GetPos()[0] + player.GetSize()[0]) #플레이어와 적과의 거리를 계산함
         dx1 = int(self.hitbox.width / 2) #히트박스의 절반
-        dx2 = int(player.hitbox.width / 2) #히트박스의 절반
+        dx2 = int(player.GetSize()[0] / 2) #히트박스의 절반
         if (distance > 0):
             self.leftwalk()
         else:
@@ -467,18 +498,13 @@ class Enemy(object):
         if (abs(distance) <= dx1 + dx2):
             self.attack()
         
-        for projectile in player.projectilelist: #플레이어 내에 변수에 직접 접근은 최대한 피하고 싶은데.... 방법 x?
-            if (len(player.projectilelist) != 0):
+        for projectile in player.GetProjectiles(): 
+            if (len(player.GetProjectiles()) != 0):
                 if (self.isHitbox is True):
                     if (self.checkcollision(projectile) is True):
                         self.getattack(player)
                     else:
                         self.notGetattack()
-                        
-        if (self.isDead is True):
-            self.SPEED = 0
-            self.GETATTACK = 0
-            self.isHitbox = False
 
     def drawpos(self):
         Screen.blit(self.cursprite, (self.hitbox.x, self.hitbox.y))
@@ -617,6 +643,6 @@ while True:
             enemy.AI(player)
             enemy.draw()
             enemy.update()
-    write(str(enemy.isDead), BLACK, 400, 20)
+    write('FPS: ' + str(int(Clock.get_fps())) + '   ' + str(player.checkcollision(Enemylist[0])), BLACK, 400, 20)
     pygame.display.update()
     Clock.tick(FPS)
