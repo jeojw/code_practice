@@ -646,3 +646,7 @@ while True:
     write('FPS: ' + str(int(Clock.get_fps())) + '   ' + str(player.checkcollision(Enemylist[0])), BLACK, 400, 20)
     pygame.display.update()
     Clock.tick(FPS)
+
+'''
+해당 코드는 Life클래스로 통합하기 전임! 만일 오류날 시 이 commit을 찾아서 참고할 것!!!
+'''
