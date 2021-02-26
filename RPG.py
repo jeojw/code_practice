@@ -163,7 +163,7 @@ class Life(object):
         '''
         왼쪽으로 걷는 상태를 설정하는 메서드
         '''
-        if (self.isDead is not True): # 만일 이 조건문이 없을 시 죽은 후에도 방향전환이 됨. 아래도 동일
+        if (self.isDead is False): # 만일 이 조건문이 없을 시 죽은 후에도 방향전환이 됨. 아래도 동일
             self.isWalk = True
             self.isAttack = False
             self.direction = LEFT
@@ -172,7 +172,7 @@ class Life(object):
         '''
         오른쪽으로 걷는 상태를 설정하는 메서드
         '''
-        if (self.isDead is not True):
+        if (self.isDead is False):
             self.isWalk = True
             self.isAttack = False
             self.direction = RIGHT
@@ -182,7 +182,7 @@ class Life(object):
         오브젝트의 점프 상태를 설정하는 메서드
         오브젝트가 지면으로부터 붕 떠져있는 경우 더 이상 위로 올라가지 않게 수정
         '''
-        if (self.isDead is not True):
+        if (self.isDead is False):
             self.isOnGround = False
             if (self.hitbox.bottom < MAP_GROUND):
                 self.y_pos += 0
@@ -205,6 +205,12 @@ class Life(object):
         self.isWalk = False
         self.isAttack = False
         self.HP -= (Another.GetStat()[1] - self.DEF)
+        if (self.x_pos > Another.GetPos()[0]):
+            self.direction = LEFT
+            self.x_pos += self.GETATTACK
+        else:
+            self.direction = RIGHT
+            self.x_pos -= self.GETATTACK
 
     def dead(self):
         '''
@@ -213,7 +219,10 @@ class Life(object):
         self.isDead = True
         self.GETATTACK = 0
         self.isHitbox = False
-
+        self.isWalk = False
+        self.isAttack = False
+        self.isGetattack = False
+        
     def notWalk(self):
         '''
         걷지 않도록 해주는 메서드
@@ -284,7 +293,7 @@ class Life(object):
 
     def updatesprite(self):# 추후 아이템 획득시에도 스프라이트 관련 업데이트를 추가할 것
         '''
-        오브젝트의 스프라이트 상태를 업데이트해주는 메서드
+        오브젝트의 스프라이트 및 히트박스를 업데이트해주는 메서드
         '''
         if (self.direction == LEFT):
             self.curlist = self.leftlist
@@ -308,6 +317,7 @@ class Life(object):
             self.index = 0
         
         self.cursprite = self.curlist[self.cur][self.index]
+        self.hitbox = self.cursprite.get_rect(topleft=(self.x_pos, self.y_pos))
         
     def update(self):
         '''
@@ -316,14 +326,13 @@ class Life(object):
         '''
         self.updatepos()
         self.updatesprite()
-    
-#나중에 라이프 클래스로 공통된 메서드는 상속으로 통해 한꺼번에 묶을 예정
+        
 class Player(Life):
     def __init__(self, x_pos, y_pos=None):
         self.x_pos = x_pos 
         self.y_pos = y_pos
         self.HP = 1000
-        self.ATK = 500
+        self.ATK = 100
         self.DEF = 0
         self.SPEED = 10
         self.GETATTACK = 80 #피격당할 시 넉백되는 거리를 설정
@@ -364,24 +373,11 @@ class Player(Life):
         (overriding)
         '''
         super().attack()
-        if (self.direction == LEFT):
-            self.projectilelist.append(Bubble(self.hitbox.left, self.hitbox.y, self.ATK, LEFT))
-        else:
-            self.projectilelist.append(Bubble(self.hitbox.right, self.hitbox.y, self.ATK, RIGHT))
-            
-    def getattack(self, Enemy):
-        '''
-        플레이어의 피격 상태를 표현해주는 메서드
-        적의 위치상태에 따라 방향, 밀려나는 거리를 설정
-        (overriding)
-        '''
-        super().getattack(Enemy)
-        if (self.x_pos > Enemy.GetPos()[0]):
-            self.direction = LEFT
-            self.x_pos += self.GETATTACK
-        else:
-            self.direction = RIGHT
-            self.x_pos -= self.GETATTACK
+        if (self.isDead is False):   #? 왜 isAttack is True가 조건문일때는 버그가? -> 키입력은 내가 설정한 bool 변수와는 하등 관계가 없나?
+            if (self.direction == LEFT):
+                self.projectilelist.append(Bubble(self.hitbox.left, self.hitbox.y, self.ATK, LEFT))
+            else:
+                self.projectilelist.append(Bubble(self.hitbox.right, self.hitbox.y, self.ATK, RIGHT))
         
     def getItem(self, Item):
         '''
@@ -411,9 +407,9 @@ class Enemy(Life):
         self.x_pos = x_pos
         self.y_pos = y_pos
         self.HP = 2500
-        self.ATK = 60
+        self.ATK = 500
         self.DEF = 40
-        self.SPEED = 4
+        self.SPEED = 1
         self.GETATTACK = 80 #피격당할 시 넉백되는 거리를 설정
 
         self.direction = LEFT
@@ -450,13 +446,8 @@ class Enemy(Life):
         (overriding)
         '''
         super().getattack(Player)
-        Player.projectilelist.remove(bubble)
-        if (self.x_pos > Player.GetPos()[0]):
-            self.direction = LEFT
-            self.x_pos += self.GETATTACK
-        else:
-            self.direction = RIGHT
-            self.x_pos -= self.GETATTACK
+        if (self.isHitbox is True):
+            Player.projectilelist.remove(bubble)
     
     def AI(self, player):
         '''
@@ -472,7 +463,8 @@ class Enemy(Life):
             self.rightwalk()
         
         if (abs(distance) <= dx1 + dx2):
-            self.attack()
+            if (player.isHitbox is True):
+                self.attack()
         
         for projectile in player.GetProjectiles(): 
             if (len(player.GetProjectiles()) != 0):
@@ -490,6 +482,8 @@ class Enemy(Life):
         if (self.HP >= 0):
             pygame.draw.rect(Screen, RED, (self.hitbox.centerx - DisplayLength / 2,
                                            self.hitbox.bottom + 19, Length, 10))
+            
+        pygame.draw.rect(Screen, RED, (self.hitbox.x, self.hitbox.y, self.hitbox.width, self.hitbox.height), 2)
     
     def updatepos(self):
         '''
@@ -561,8 +555,8 @@ while True:
     Screen.blit(mapscale, (0, 0))
     player.draw()
     player.update()
-    if (len(player.projectilelist) != 0):
-        for bubble in player.projectilelist:
+    if (len(player.GetProjectiles()) != 0):
+        for bubble in player.GetProjectiles():
             bubble.move()
             bubble.draw()
             
@@ -571,6 +565,6 @@ while True:
             enemy.AI(player)
             enemy.draw()
             enemy.update()
-    write('FPS: ' + str(int(Clock.get_fps())) + '   ' + str(player.GETATTACK), BLACK, 400, 20)
+    write('FPS: ' + str(int(Clock.get_fps())) + '   ' + str(player.isAttack) + '   ' + str(player.isGetattack), BLACK, 400, 20)
     pygame.display.update()
     Clock.tick(FPS)
