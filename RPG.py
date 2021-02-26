@@ -12,8 +12,34 @@ MAP_HEIGHT = 0
 MAP_LIMIT_LEFT = 0
 MAP_LIMIT_RIGHT = 800
 
+'''
+오브젝트의 스텟 관련 변수
+'''
+HP = 'hp'
+ATK = 'atk'
+DEF = 'def'
+SPEED = 'speed'
+
+'''
+오브젝트의 컨디션 관련 전역변수
+'''
 LEFT = 'LEFT'
 RIGHT = 'RIGHT'
+DIRECTION = 'direction'
+WALK = 'walk'
+ATTACK = 'attack'
+GETATTACK = 'getattack'
+DEAD = 'dead'
+HITBOX = 'hitbox'
+ONGROUND = 'onground'
+
+'''
+히트박스 사이즈 및 위치 전역변수
+'''
+X = 'x'
+Y = 'y'
+WIDTH = 'width'
+HEIGHT = 'height'
 
 class Bubble(object):
     def __init__(self, x_pos, y_pos, ATK, direction):
@@ -125,23 +151,75 @@ class Life(object):
         self.DEF += DEF
         self.SPEED += SPEED
     
-    def GetStat(self):
+    def GetStat(self, stat):
         '''
         오브젝트의 스텟 반환
         '''
-        return [self.HP, self.ATK, self.DEF, self.SPEED]
+        try:
+            if (stat == 'hp'):
+                return self.HP
+            elif (stat == 'atk'):
+                return self.ATK
+            elif (stat == 'def'):
+                return self.DEF
+            elif (stat == 'speed'):
+                return self.SPEED
+            else:
+                raise ValueError
+        except ValueError:
+            print('Not Stat!!')
     
-    def GetPos(self):
+    def GetCondition(self, condition):
+        '''
+        오브젝트의 상태 불값에 대해 반환함
+        '''
+        try:
+            if (condition == 'direction'):
+                return self.direction
+            elif (condition == 'onground'):
+                return self.isOnGround
+            elif (condition == 'walk'):
+                return self.isWalk
+            elif (condition == 'attack'):
+                return self.isAttack
+            elif (condition == 'getattack'):
+                return self.isGetattack
+            elif (condition == 'dead'):
+                return self.isDead
+            elif (condition == 'hitbox'):
+                return self.isHitbox
+            else:
+                raise ValueError
+        except ValueError:
+            print('Not Condition!!')
+    
+    def GetPos(self, pos):
         '''
         오브젝트의 위치 반환
         '''
-        return [self.hitbox.x, self.hitbox.y]
+        try:
+            if (pos == 'x'):
+                return self.hitbox.x
+            elif (pos == 'y'):
+                return self.hitbox.y
+            else:
+                raise ValueError
+        except ValueError:
+            print('Not Pos!!!!')
     
-    def GetSize(self):
+    def GetSize(self, length):
         '''
         오브젝트의 크기 반환
         '''
-        return [self.hitbox.width, self.hitbox.height]
+        try:
+            if (length == 'width'):
+                return self.hitbox.width
+            elif (length == 'height'):
+                return self.hitbox.height
+            else:
+                raise ValueError
+        except ValueError:
+            print('Not Lenght!!!')
     
     def GetProjectiles(self):
         '''
@@ -204,8 +282,8 @@ class Life(object):
         self.isGetattack = True
         self.isWalk = False
         self.isAttack = False
-        self.HP -= (Another.GetStat()[1] - self.DEF)
-        if (self.x_pos > Another.GetPos()[0]):
+        self.HP -= (Another.GetStat(ATK) - self.DEF)
+        if (self.x_pos > Another.GetPos(X)):
             self.direction = LEFT
             self.x_pos += self.GETATTACK
         else:
@@ -397,7 +475,7 @@ class Player(Life):
         super().updatepos()
         for Enemy in Enemylist:
             if (self.isHitbox is True):
-                if (self.checkcollision(Enemy) is True and Enemy.isHitbox is True): #임시방편, 그러나 충돌판정은 유효해서 언제 버그가 터질지 모름......
+                if (self.checkcollision(Enemy) is True and Enemy.GetCondition(HITBOX) is True): #임시방편, 그러나 충돌판정은 유효해서 언제 버그가 터질지 모름......
                     self.getattack(Enemy)
                 else:
                     self.notGetattack()
@@ -454,16 +532,16 @@ class Enemy(Life):
         기본적의 적의 AI
         플레이어에 상태에 따라서 업데이트가 된다
         '''
-        distance = self.hitbox.centerx - (player.GetPos()[0] + player.GetSize()[0]) #플레이어와 적과의 거리를 계산함
+        distance = self.hitbox.centerx - (player.GetPos(X) + player.GetSize(WIDTH)) #플레이어와 적과의 거리를 계산함
         dx1 = int(self.hitbox.width / 2) #히트박스의 절반
-        dx2 = int(player.GetSize()[0] / 2) #히트박스의 절반
+        dx2 = int(player.GetSize(WIDTH) / 2) #히트박스의 절반
         if (distance > 0):
             self.leftwalk()
         else:
             self.rightwalk()
         
         if (abs(distance) <= dx1 + dx2):
-            if (player.isHitbox is True):
+            if (player.GetCondition(HITBOX) is True):
                 self.attack()
         
         for projectile in player.GetProjectiles(): 
