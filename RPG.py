@@ -41,37 +41,124 @@ Y = 'y'
 WIDTH = 'width'
 HEIGHT = 'height'
 
-class Bubble(object):
+'''
+오브젝트 관련 리스트
+'''
+Enemylist= []
+Deadboollist = []
+
+Enemydic = {'Near': list(),
+            'Distance' : list()
+            'Boss' : list()} #추후 쓰일 적 딕셔너리 타입. 딕셔너리 타입에 따라 스텟을 조정할 예정
+Itemlist = []
+
+'''
+텍스트 작성 함수
+'''
+font = pygame.font.SysFont('굴림', 40)
+def write(Text, color, x_pos, y_pos):
+    surface = font.render(Text, True, color)
+    rect = surface.get_rect()
+    rect.center = (x_pos, y_pos)
+    Screen.blit(surface, rect)
+
+'''
+기본적인 색상
+'''
+BLACK = (0, 0, 0)
+WHITE = (255, 255, 255)
+BLUE = (0, 0, 255)
+GREEN = (0, 255, 0)
+RED = (255, 0, 0)
+
+'''
+기본적인 시스템 변수 설정
+'''
+x_size = 800
+y_size = 600
+Screen = pygame.display.set_mode((x_size, y_size))
+Clock = pygame.time.Clock()
+Time = pygame.time.get_ticks()
+FPS = 60
+UPDATETIME = Clock.tick(FPS) / 1000
+
+# make enemylist!!!
+mapimage = pygame.image.load('display.png')
+mapscale = pygame.transform.scale(mapimage, (800, 600))
+
+class Projectile(object):
+    '''
+    해당 클래스는 투사체의 기본적인 틀을 정해놓았다. 기본적으로는 버블임
+    '''
     def __init__(self, x_pos, y_pos, ATK, direction):
+        '''
+        생성자에서 위치, 스텟, 방향, 이미지, 히트박스 설정을 관리함
+        '''
         self.x_pos = x_pos
         self.y_pos = y_pos
         self.ATK = ATK
-        self.SPEED = 3
+        self.SPEED = 7
         self.direction = direction
         image = pygame.image.load('char_sprite/bubble.png')
         self.image = pygame.transform.scale(image, (30, 30))
         self.hitbox = self.image.get_rect(topleft=(self.x_pos, self.y_pos))
         
+    def SetStat(self, ATK, SPEED):
+        '''
+        투사체의 스텟 설정
+        '''
+        self.ATK = ATK
+        self.SPEED = SPEED
+        
     def draw(self):
+        '''
+        스크린에다가 투사체를 그려넣음
+        '''
         Screen.blit(self.image, (self.hitbox.x, self.hitbox.y))
         
     def move(self):
+        '''
+        투사체가 자동으로 움직이도록 하는 메서드
+        업데이트까지 겸함
+        '''
         if (self.direction == LEFT):
             self.hitbox.x += -self.SPEED
         else:
             self.hitbox.x += self.SPEED
 
     def checkcollision(self, Enemy):
+        '''
+        충돌 판정
+        '''
         if (pygame.Rect.colliderect(self.hitbox, Enemy.hitbox)):
             return True
         else:
             return False
+        
+class Ice(Projectile):
+    '''
+    플레이어가 발사하는 아이스
+    '''
+    def __init__(self, x_pos, y_pos, ATK, direction):
+        super().__init__(x_pos, y_pos, ATK, direction)
+        self.image = pygame.image.load('char_sprite/ice.png')
+        self.hitbox = self.image.get_rect(topleft=(self.x_pos, self.y_pos))
 
 class Item(object):
     def __init__(self, x_pos, y_pos):
         self.x_pos = x_pos
         self.y_pos = y_pos
         self.image = None
+        self.hitbox = self.image.get_rect(topleft=(self.x_pos, self.y_pos))
+        
+    def draw(self):
+        Screen.blit(self.image, (self.hitbox.x, self.hitbox.y))
+
+    def checkcollision(self, Player):
+        if (pygame.Rect.colliderect(self.hitbox, Player.hitbox)):
+            return True
+        else:
+            return False
     
 class Life(object):
     '''
@@ -109,27 +196,7 @@ class Life(object):
         self.index = 0 #각 스프라이트 리스트의 인덱스
         self.cur = 0 #각 스프라이트 덩어리의 인덱스
         self.projectilelist = [] #플레이어가 공격판정이 정해질 때 리스트로 따로 관리함
-        self.items = 0 #플레이어가 공격성 아이템을 획득 시 공격 한번 할때마다 차감되도록 설정
-        
-        '''
-        여기에서 이미지파일을 기반으로 스프라이트 및 히트박스들을 관리함
-        '''
-        rightstatic = []
-        rightdead = []
-        rightwalk = []
-        rightattack = []
-        rightgetattack = []
-        leftwalk = []
-        leftstatic = []
-        leftdead = []
-        leftattack = []
-        leftgetattack = []
-
-        self.rightlist = [rightstatic, rightwalk, rightattack, rightgetattack ,rightdead]
-        self.leftlist = [leftstatic, leftwalk, leftattack, leftgetattack ,leftdead]
-        self.curlist = self.rightlist
-        self.cursprite = self.curlist[self.cur][self.index]
-        self.hitbox = self.cursprite.get_rect(bottomleft=(self.x_pos, self.y_pos))
+        self.curtime = 0
         
     def SetStat(self, HP, ATK, DEF, SPEED):
         '''
@@ -198,9 +265,9 @@ class Life(object):
         '''
         try:
             if (pos == 'x'):
-                return self.hitbox.x
+                return self.x_pos
             elif (pos == 'y'):
-                return self.hitbox.y
+                return self.y_pos
             else:
                 raise ValueError
         except ValueError:
@@ -210,15 +277,7 @@ class Life(object):
         '''
         오브젝트의 크기 반환
         '''
-        try:
-            if (length == 'width'):
-                return self.hitbox.width
-            elif (length == 'height'):
-                return self.hitbox.height
-            else:
-                raise ValueError
-        except ValueError:
-            print('Not Lenght!!!')
+        pass
     
     def GetProjectiles(self):
         '''
@@ -372,6 +431,7 @@ class Life(object):
         '''
         오브젝트의 스프라이트 및 히트박스를 업데이트해주는 메서드
         '''
+        
         if (self.direction == LEFT):
             self.curlist = self.leftlist
         elif (self.direction == RIGHT):
@@ -390,7 +450,7 @@ class Life(object):
         if (self.HP <= 0):
             self.cur = 4
             self.dead()
-
+            
         self.index += 1
         if (self.index >= len(self.curlist[self.cur])):
             self.index = 0
@@ -408,29 +468,9 @@ class Life(object):
         
 class Player(Life):
     def __init__(self, x_pos, y_pos=None):
-        self.x_pos = x_pos 
-        if (y_pos is None):
-            self.y_pos = MAP_GROUND
-        else:
-            self.y_pos = y_pos
-        self.HP = 1000
-        self.ATK = 100
-        self.DEF = 0
-        self.SPEED = 10
-        self.GETATTACK = 80 #피격당할 시 넉백되는 거리를 설정
-
-        self.direction = RIGHT
-        self.isDead = False
-        self.isAttack = False
-        self.isWalk = False
-        self.isOnGround = True
-        self.isGetattack = False
-        self.isHitbox = True #사망 시에 히트박스 없는 것으로 처리
-        self.index = 0 #각 스프라이트 리스트의 인덱스
-        self.cur = 0 #각 스프라이트 덩어리의 인덱스
-        self.projectilelist = [] #플레이어가 공격판정이 정해질 때 리스트로 따로 관리함
-        self.items = 0 #플레이어가 공격성 아이템을 획득 시 공격 한번 할때마다 차감되도록 설정
+        super().__init__(x_pos, y_pos)
         
+        self.direction = RIGHT
         self.atkcool = 5
         
         rightstatic = [pygame.image.load('char_sprite/char_static.png')]
@@ -449,6 +489,20 @@ class Player(Life):
         self.curlist = self.rightlist
         self.cursprite = self.curlist[self.cur][self.index]
         self.hitbox = self.cursprite.get_rect(bottomleft=(self.x_pos, self.y_pos))
+        
+    def GetSize(self, length):
+        '''
+        오브젝트의 크기 반환
+        '''
+        try:
+            if (length == 'width'):
+                return self.hitbox.width
+            elif (length == 'height'):
+                return self.hitbox.height
+            else:
+                raise ValueError
+        except ValueError:
+            print('Not Lenght!!!')
                 
     def attack(self):
         '''
@@ -461,9 +515,9 @@ class Player(Life):
         
         if (self.isDead is False):   #? 왜 isAttack is True가 조건문일때는 버그가? -> 키입력은 내가 설정한 bool 변수와는 하등 관계가 없나?
             if (self.direction == LEFT):
-                self.projectilelist.append(Bubble(self.hitbox.left, self.hitbox.y, self.ATK, LEFT))
+                self.projectilelist.append(Projectile(self.hitbox.left, self.hitbox.y, self.ATK, LEFT))
             else:
-                self.projectilelist.append(Bubble(self.hitbox.right, self.hitbox.y, self.ATK, RIGHT))
+                self.projectilelist.append(Projectile(self.hitbox.right, self.hitbox.y, self.ATK, RIGHT))
         
     def getItem(self, Item):
         '''
@@ -489,26 +543,10 @@ class Player(Life):
 
 class Enemy(Life):
     def __init__(self, x_pos, y_pos=None):
-        self.x_pos = x_pos
-        if (y_pos is None):
-            self.y_pos = MAP_GROUND
-        else:
-            self.y_pos = y_pos
-        self.HP = 2500
-        self.ATK = 70
-        self.DEF = 40
-        self.SPEED = 7
-        self.GETATTACK = 80 #피격당할 시 넉백되는 거리를 설정
-
+        super().__init__(x_pos, y_pos)
+        
         self.direction = LEFT
-        self.isDead = False
-        self.isAttack = False
-        self.isWalk = False
-        self.isOnGround = True
-        self.isGetattack = False
-        self.isHitbox = True
-        self.index = 0
-        self.cur = 0
+        self.curtime = 0
         
         rightstatic = [pygame.image.load('enemy_sprite/enemy_static.png')]
         rightdead = [pygame.image.load('char_sprite/char_dead.png')]
@@ -526,6 +564,26 @@ class Enemy(Life):
         self.curlist = self.leftlist
         self.cursprite = self.curlist[self.cur][self.index]
         self.hitbox = self.cursprite.get_rect(bottomleft=(self.x_pos, self.y_pos))
+        
+    def GetSize(self, length):
+        '''
+        오브젝트의 크기 반환
+        '''
+        try:
+            if (length == 'width'):
+                return self.hitbox.width
+            elif (length == 'height'):
+                return self.hitbox.height
+            else:
+                raise ValueError
+        except ValueError:
+            print('Not Lenght!!!')
+            
+    def dropItem(self):
+        '''
+        아이템을 드롭시키는 함수, 나중에 확률에 따라 드랍시킬 생각
+        '''
+        Itemlist.append(Item(self.x_pos, self.y_pos))
     
     def AI(self, player):
         '''
@@ -550,6 +608,9 @@ class Enemy(Life):
                     if (self.checkcollision(projectile) is True):
                         self.getattack(player)
                         player.GetProjectiles().remove(bubble)
+                        
+        if (self.isDead is True):
+            self.dropItem
         
     def drawStat(self):
         Length = self.HP / 20
@@ -564,33 +625,14 @@ class Boss(object):
     def __init__(self):
         pass
 
-font = pygame.font.SysFont('굴림', 40)
-def write(Text, color, x_pos, y_pos):
-    surface = font.render(Text, True, color)
-    rect = surface.get_rect()
-    rect.center = (x_pos, y_pos)
-    Screen.blit(surface, rect)
 
-BLACK = (0, 0, 0)
-WHITE = (255, 255, 255)
-BLUE = (0, 0, 255)
-GREEN = (0, 255, 0)
-RED = (255, 0, 0)
-
-x_size = 800
-y_size = 600
-Screen = pygame.display.set_mode((x_size, y_size))
-FPS = 60
-Clock = pygame.time.Clock()
-Time = pygame.time.get_ticks()
-
-# make enemylist!!!
-mapimage = pygame.image.load('display.png')
-mapscale = pygame.transform.scale(mapimage, (800, 600))
-
-Itemlist = [] #-> 전역변수화 atk, def, speed, hp
 player = Player(300)
-Enemylist = [Enemy(600)]
+player.SetStat(1000, 100, 0, 10)
+Enemylist.append(Enemy(600))
+for Enemy in Enemylist:
+    Deadboollist.append(Enemy.GetCondition(DEAD))
+for Enemy in Enemylist:
+    Enemy.SetStat(2500, 70, 40, 2)
 
 while True:
     for event in pygame.event.get():
@@ -634,6 +676,13 @@ while True:
             enemy.AI(player)
             enemy.draw()
             enemy.update()
+
+    '''
+    for Item in Itemlist:
+        if (len(Itemlist) != 0):
+            Item.draw()
+    '''
+            
     write('FPS: ' + str(int(Clock.get_fps())) + '   ' + str(pygame.time.get_ticks()), BLACK, 400, 20)
     pygame.display.update()
     Clock.tick(FPS)
