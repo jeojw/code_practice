@@ -48,8 +48,8 @@ Enemylist= []
 Deadboollist = []
 
 Enemydic = {'Near': list(),
-            'Distance' : list()
-            'Boss' : list()} #추후 쓰일 적 딕셔너리 타입. 딕셔너리 타입에 따라 스텟을 조정할 예정
+            'Distance': list(),
+            'Boss': list()} #추후 쓰일 적 딕셔너리 타입. 딕셔너리 타입에 따라 스텟을 조정할 예정
 Itemlist = []
 
 '''
@@ -388,6 +388,7 @@ class Life(object):
         오브젝트의 위치에 따라 화면에 그려주는 메서드
         '''
         Screen.blit(self.cursprite, (self.hitbox.x, self.hitbox.y))
+        pygame.draw.rect(Screen, RED, (self.hitbox.x, self.hitbox.y, self.hitbox.width, self.hitbox.height), 1)
 
     def drawStat(self):
         '''
@@ -455,8 +456,11 @@ class Life(object):
         if (self.index >= len(self.curlist[self.cur])):
             self.index = 0
         
-        self.cursprite = self.curlist[self.cur][self.index]
-        self.hitbox = self.cursprite.get_rect(topleft=(self.x_pos, self.y_pos))
+        self.cursprite = self.curlist[self.cur][self.index] #위치 조정...이 잘 안되네??? 무슨 문제일까..
+        if (self.direction == LEFT):
+            self.hitbox = self.cursprite.get_rect(bottomright=(self.x_pos, self.y_pos))
+        else:
+            self.hitbox = self.cursprite.get_rect(bottomleft=(self.x_pos, self.y_pos)) 
         
     def update(self):
         '''
@@ -488,7 +492,7 @@ class Player(Life):
         self.leftlist = [leftstatic, leftwalk, leftattack, leftgetattack ,leftdead]
         self.curlist = self.rightlist
         self.cursprite = self.curlist[self.cur][self.index]
-        self.hitbox = self.cursprite.get_rect(bottomleft=(self.x_pos, self.y_pos))
+        self.hitbox = self.cursprite.get_rect(topleft=(self.x_pos, self.y_pos))
         
     def GetSize(self, length):
         '''
@@ -551,19 +555,19 @@ class Enemy(Life):
         rightstatic = [pygame.image.load('enemy_sprite/enemy_static.png')]
         rightdead = [pygame.image.load('char_sprite/char_dead.png')]
         rightwalk = [pygame.image.load('enemy_sprite/enemy_walk_' + str(i) + '.png') for i in range(1, 3)]
-        rightattack = [pygame.image.load('char_sprite/char_attack.png')]
+        rightattack = [pygame.image.load('enemy_sprite/enemy_attack_' + str(i) + '.png') for i in range(1, 3)]
         rightgetattack = [pygame.image.load('char_sprite/char_get_attack.png')]
         leftwalk = [pygame.transform.flip(rightwalks, True, 0) for rightwalks in rightwalk]
         leftstatic = [pygame.transform.flip(rightstatic[0], True, 0)]
         leftdead = [pygame.transform.flip(rightdead[0], True, 0)]
-        leftattack = [pygame.transform.flip(rightattack[0], True, 0)]
+        leftattack = [pygame.transform.flip(rightattacks, True, 0) for rightattacks in rightattack]
         leftgetattack = [pygame.transform.flip(rightgetattack[0], True, 0)]
 
         self.rightlist = [rightstatic, rightwalk, rightattack, rightgetattack ,rightdead]
         self.leftlist = [leftstatic, leftwalk, leftattack, leftgetattack ,leftdead]
         self.curlist = self.leftlist
         self.cursprite = self.curlist[self.cur][self.index]
-        self.hitbox = self.cursprite.get_rect(bottomleft=(self.x_pos, self.y_pos))
+        self.hitbox = self.cursprite.get_rect(topleft=(self.x_pos, self.y_pos))
         
     def GetSize(self, length):
         '''
@@ -590,7 +594,7 @@ class Enemy(Life):
         기본적의 적의 AI
         플레이어에 상태에 따라서 업데이트가 된다
         '''
-        distance = self.hitbox.centerx - (player.GetPos(X) + player.GetSize(WIDTH)) #플레이어와 적과의 거리를 계산함
+        distance = self.hitbox.centerx - (player.GetPos(X) + player.GetSize(WIDTH) / 2) #플레이어와 적과의 거리를 계산함
         dx1 = int(self.hitbox.width / 2) #히트박스의 절반
         dx2 = int(player.GetSize(WIDTH) / 2) #히트박스의 절반
         if (distance > 0):
@@ -598,7 +602,7 @@ class Enemy(Life):
         else:
             self.rightwalk()
         
-        if (abs(distance) < dx1 + dx2):
+        if (abs(distance) <= dx1 + dx2 + 15):
             if (player.GetCondition(HITBOX) is True):
                 self.attack()
         
@@ -628,11 +632,11 @@ class Boss(object):
 
 player = Player(300)
 player.SetStat(1000, 100, 0, 10)
-Enemylist.append(Enemy(600))
+Enemylist.append(Enemy(100))
 for Enemy in Enemylist:
     Deadboollist.append(Enemy.GetCondition(DEAD))
 for Enemy in Enemylist:
-    Enemy.SetStat(2500, 70, 40, 2)
+    Enemy.SetStat(2500, 0, 40, 2)
 
 while True:
     for event in pygame.event.get():
@@ -683,6 +687,6 @@ while True:
             Item.draw()
     '''
             
-    write('FPS: ' + str(int(Clock.get_fps())) + '   ' + str(pygame.time.get_ticks()), BLACK, 400, 20)
+    write('FPS: ' + str(int(Clock.get_fps())) + '   ' + str(Enemylist[0].hitbox.y), BLACK, 400, 20)
     pygame.display.update()
     Clock.tick(FPS)
