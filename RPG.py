@@ -263,15 +263,7 @@ class Life(object):
         '''
         오브젝트의 위치 반환
         '''
-        try:
-            if (pos == 'x'):
-                return self.x_pos
-            elif (pos == 'y'):
-                return self.y_pos
-            else:
-                raise ValueError
-        except ValueError:
-            print('Not Pos!!!!')
+        pass
     
     def GetSize(self, length):
         '''
@@ -341,7 +333,7 @@ class Life(object):
         self.isWalk = False
         self.isAttack = False
         self.HP -= (Another.GetStat(ATK) - self.DEF)
-        if (self.x_pos > Another.GetPos(X)):
+        if (self.x_pos + self.hitbox.width / 2 > Another.GetPos(X) + Another.GetSize(WIDTH) / 2):
             self.direction = LEFT
             self.x_pos += self.GETATTACK
         else:
@@ -388,7 +380,6 @@ class Life(object):
         오브젝트의 위치에 따라 화면에 그려주는 메서드
         '''
         Screen.blit(self.cursprite, (self.hitbox.x, self.hitbox.y))
-        pygame.draw.rect(Screen, RED, (self.hitbox.x, self.hitbox.y, self.hitbox.width, self.hitbox.height), 1)
 
     def drawStat(self):
         '''
@@ -415,7 +406,7 @@ class Life(object):
         if (self.isOnGround is False):
             self.y_pos += GRAVITY
         if (self.hitbox.bottom >= MAP_GROUND):
-            self.y_pos = MAP_GROUND - self.hitbox.height
+            self.y_pos = MAP_GROUND
             self.isOnGround = True
         if (self.hitbox.left <= MAP_LIMIT_LEFT):
             self.x_pos = MAP_LIMIT_LEFT
@@ -456,11 +447,8 @@ class Life(object):
         if (self.index >= len(self.curlist[self.cur])):
             self.index = 0
         
-        self.cursprite = self.curlist[self.cur][self.index] #위치 조정...이 잘 안되네??? 무슨 문제일까..
-        if (self.direction == LEFT):
-            self.hitbox = self.cursprite.get_rect(bottomright=(self.x_pos, self.y_pos))
-        else:
-            self.hitbox = self.cursprite.get_rect(bottomleft=(self.x_pos, self.y_pos)) 
+        self.cursprite = self.curlist[self.cur][self.index]
+        self.hitbox = self.cursprite.get_rect(bottomleft=(self.x_pos, self.y_pos))
         
     def update(self):
         '''
@@ -492,7 +480,21 @@ class Player(Life):
         self.leftlist = [leftstatic, leftwalk, leftattack, leftgetattack ,leftdead]
         self.curlist = self.rightlist
         self.cursprite = self.curlist[self.cur][self.index]
-        self.hitbox = self.cursprite.get_rect(topleft=(self.x_pos, self.y_pos))
+        self.hitbox = self.cursprite.get_rect(bottomleft=(self.x_pos, self.y_pos))
+        
+    def GetPos(self, pos):
+        '''
+        오브젝트의 위치 반환
+        '''
+        try:
+            if (pos == 'x'):
+                return self.hitbox.x
+            elif (pos == 'y'):
+                return self.hitbox.y
+            else:
+                raise ValueError
+        except ValueError:
+            print('Not Pos!!!!')
         
     def GetSize(self, length):
         '''
@@ -514,9 +516,7 @@ class Player(Life):
         플레이어는 원거리 공격을 주로 하므로 공격판정마다 projectilelist 내에 방향을 추가
         (overriding)
         '''
-        self.isWalk = False
-        self.isAttack = True
-        
+        super().attack()
         if (self.isDead is False):   #? 왜 isAttack is True가 조건문일때는 버그가? -> 키입력은 내가 설정한 bool 변수와는 하등 관계가 없나?
             if (self.direction == LEFT):
                 self.projectilelist.append(Projectile(self.hitbox.left, self.hitbox.y, self.ATK, LEFT))
@@ -534,16 +534,13 @@ class Player(Life):
         Length = self.HP / 5
         if (self.HP >= 0):
             pygame.draw.rect(Screen, RED, (10, 10, Length, 30))
-        write('ATK: ' + str(self.ATK), BLACK, 70, 60)
-        write('DEF: ' + str(self.DEF), BLACK, 70, 100)
-        write('SPEED: ' + str(self.SPEED), BLACK, 85, 140)
         
     def updatepos(self):
         super().updatepos()
-        for Enemy in Enemylist:
+        for enemy in Enemylist:
             if (self.isHitbox is True):
-                if (self.checkcollision(Enemy) is True and Enemy.GetCondition(HITBOX) is True):
-                    self.getattack(Enemy)
+                if (self.checkcollision(enemy) is True):
+                    self.getattack(enemy)
 
 class Enemy(Life):
     def __init__(self, x_pos, y_pos=None):
@@ -551,12 +548,13 @@ class Enemy(Life):
         
         self.direction = LEFT
         self.curtime = 0
+        self.attackRange = 70
         
         rightstatic = [pygame.image.load('enemy_sprite/enemy_static.png')]
-        rightdead = [pygame.image.load('char_sprite/char_dead.png')]
+        rightdead = [pygame.image.load('enemy_sprite/enemy_dead.png')]
         rightwalk = [pygame.image.load('enemy_sprite/enemy_walk_' + str(i) + '.png') for i in range(1, 3)]
         rightattack = [pygame.image.load('enemy_sprite/enemy_attack_' + str(i) + '.png') for i in range(1, 3)]
-        rightgetattack = [pygame.image.load('char_sprite/char_get_attack.png')]
+        rightgetattack = [pygame.image.load('enemy_sprite/enemy_get_attack.png')]
         leftwalk = [pygame.transform.flip(rightwalks, True, 0) for rightwalks in rightwalk]
         leftstatic = [pygame.transform.flip(rightstatic[0], True, 0)]
         leftdead = [pygame.transform.flip(rightdead[0], True, 0)]
@@ -567,7 +565,21 @@ class Enemy(Life):
         self.leftlist = [leftstatic, leftwalk, leftattack, leftgetattack ,leftdead]
         self.curlist = self.leftlist
         self.cursprite = self.curlist[self.cur][self.index]
-        self.hitbox = self.cursprite.get_rect(topleft=(self.x_pos, self.y_pos))
+        self.hitbox = self.cursprite.get_rect(bottomleft=(self.x_pos, self.y_pos))
+        
+    def GetPos(self, pos):
+        '''
+        오브젝트의 위치 반환
+        '''
+        try:
+            if (pos == 'x'):
+                return self.hitbox.x
+            elif (pos == 'y'):
+                return self.hitbox.y
+            else:
+                raise ValueError
+        except ValueError:
+            print('Not Pos!!!!')
         
     def GetSize(self, length):
         '''
@@ -595,26 +607,27 @@ class Enemy(Life):
         플레이어에 상태에 따라서 업데이트가 된다
         '''
         distance = self.hitbox.centerx - (player.GetPos(X) + player.GetSize(WIDTH) / 2) #플레이어와 적과의 거리를 계산함
-        dx1 = int(self.hitbox.width / 2) #히트박스의 절반
-        dx2 = int(player.GetSize(WIDTH) / 2) #히트박스의 절반
         if (distance > 0):
             self.leftwalk()
         else:
             self.rightwalk()
         
-        if (abs(distance) <= dx1 + dx2 + 15):
+        if (abs(distance) <= self.attackRange):
             if (player.GetCondition(HITBOX) is True):
                 self.attack()
         
-        for projectile in player.GetProjectiles(): 
+        for projectile in player.GetProjectiles():
             if (len(player.GetProjectiles()) != 0):
                 if (self.isHitbox is True):
                     if (self.checkcollision(projectile) is True):
                         self.getattack(player)
                         player.GetProjectiles().remove(bubble)
-                        
+        '''
         if (self.isDead is True):
-            self.dropItem
+            self.dropItem()
+        '''
+            
+        return distance
         
     def drawStat(self):
         Length = self.HP / 20
@@ -625,7 +638,7 @@ class Enemy(Life):
             pygame.draw.rect(Screen, RED, (self.hitbox.centerx - DisplayLength / 2,
                                            self.hitbox.bottom + 19, Length, 10))
 
-class Boss(object):
+class Boss(Life):
     def __init__(self):
         pass
 
@@ -636,7 +649,7 @@ Enemylist.append(Enemy(100))
 for Enemy in Enemylist:
     Deadboollist.append(Enemy.GetCondition(DEAD))
 for Enemy in Enemylist:
-    Enemy.SetStat(2500, 0, 40, 2)
+    Enemy.SetStat(2500, 100, 40, 2)
 
 while True:
     for event in pygame.event.get():
@@ -653,7 +666,7 @@ while True:
                 player.jump()
             elif (event.key == pygame.K_x):
                 player.attack()
-            elif (event.key == pygame.K_z): #아이템 획득 키
+            elif (event.key == pygame.K_z): #아이템 획득 키#72381d
                 pass
             elif (event.key == pygame.K_ESCAPE):
                 pygame.quit()
@@ -687,6 +700,6 @@ while True:
             Item.draw()
     '''
             
-    write('FPS: ' + str(int(Clock.get_fps())) + '   ' + str(Enemylist[0].hitbox.y), BLACK, 400, 20)
+    write(str(player.checkcollision(Enemylist[0])) + '   ' + str(player.isGetattack), BLACK, 400, 20)
     pygame.display.update()
     Clock.tick(FPS)
