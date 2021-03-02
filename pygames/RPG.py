@@ -697,15 +697,43 @@ class Boss(Enemy):
     def drawStat(self):
         pass
 
+def StartScreen():
+    while True:
+        Screen.fill(WHITE)
+        write(BigFont, 'Tetris', BLACK, x_size / 2, y_size / 2)
+        write(BigFont, 'Press S!', BLACK, x_size / 2, 450)
+        pygame.display.update()
+        
+        for event in pygame.event.get():
+            if (event.type == pygame.QUIT):
+                pygame.quit()
+                sys.exit()
+
+            if (event.type == pygame.KEYDOWN):
+                if (event.key == pygame.K_s):
+                    return False
+                elif (event.type == pygame.K_ESCAPE):
+                    pygame.quit()
+                    sys.exit()
+
+def GameoverScreen():
+    write(BigFont, 'GameOver!!!', BLUE, x_size / 2, 300)
+    write(BigFont, 'Try Again?', BLUE, x_size / 2, 370)
+    write(BigFont, 'Y / N', BLUE, x_size / 2, 440)
+    pygame.display.update()
+    pygame.time.wait(500)
+
 def rungame():
     global Enemy
     player = Player(300)
     player.SetStat(1000, 100, 0, 10)
     Enemylist.append(Enemy(600))
+    Enemylist.append(Enemy(500))
+    Enemylist.append(Enemy(400))
     for Enemy in Enemylist:
         Deadboollist.append(Enemy.GetCondition(DEAD))
     for Enemy in Enemylist:
-        Enemy.SetStat(2500, 0, 40, 2)
+        Enemy.SetStat(2500, 100, 40, 2)
 
     while True:
         for event in pygame.event.get():
@@ -745,7 +773,7 @@ def rungame():
                 projectile.draw()
                 
             for projectile in Projectilelist:
-                if (projectile.GetPos(X) <= MAP_LIMIT_LEFT or 
+                if (projectile.GetPos(X) <= MAP_LIMIT_LEFT or
                     projectile.GetPos(X) + projectile.GetSize(WIDTH) >= MAP_LIMIT_RIGHT):
                     Projectilelist.remove(projectile)
             
@@ -766,11 +794,12 @@ def rungame():
         Clock.tick(FPS)
     
 def main():
-    global Clock, Screen, Font
+    global Clock, Screen, BigFont, SmallFont
     pygame.init()
     Clock = pygame.time.Clock()
     Screen = pygame.display.set_mode((x_size, y_size))
-    Font = pygame.font.SysFont('굴림', 40)
+    BigFont = pygame.font.SysFont('굴림', 70)
+    SmallFont = pygame.font.SysFont('굴림', 40)
     
     pygame.display.set_caption("RPG")
     
