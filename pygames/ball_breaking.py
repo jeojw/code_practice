@@ -1,4 +1,6 @@
 import pygame
+import sys
+import time
 
 class Object(object):
     def __init__(self, color, x_pos, y_pos, width, height):
@@ -9,21 +11,14 @@ class Object(object):
         self.y_pos = y_pos
         self.hitbox = pygame.Rect(self.x_pos, self.y_pos,
                                   self.width, self.height)
-        self.poslist = [self.hitbox.left, self.hitbox.right,
-                        self.hitbox.top, self.hitbox.bottom]
 
     def draw(self):
-        pygame.draw.rect(screen, self.color, [self.x_pos, self.y_pos,
+        pygame.draw.rect(screen, self.color, [self.hitbox.x, self.hitbox.y,
                                               self.width, self.height])
 
     def move(self, x_pos, y_pos):
-        self.x_pos += x_pos
-        self.y_pos += y_pos
-
-    def updatehitbox(self, x_pos, y_pos):
-        self.move(x_pos, y_pos)
-        self.hitbox.x = self.x_pos
-        self.hitbox.y = self.y_pos
+        self.hitbox.x += x_pos
+        self.hitbox.y += y_pos
 
     def checkcollision(self, Ahitbox):
         if(pygame.Rect.colliderect(self.hitbox, Ahitbox)):
@@ -38,10 +33,10 @@ class Player(Object):
     def move(self, x_pos, y_pos):
         super().move(x_pos, y_pos)
 
-        if(self.x_pos < 2):
-            self.x_pos = 2
-        elif(self.x_pos > 452 - self.width):
-            self.x_pos = 452 - self.width
+        if(self.hitbox.x < 2):
+            self.hitbox.x = 2
+        elif(self.hitbox.x > 452 - self.width):
+            self.hitbox.x = 452 - self.width
 
 class Block(Object):
     def __init__(self, color, x_pos, y_pos, width, height):
@@ -108,68 +103,75 @@ RED = (255, 0, 0)
 
 x_size = 454
 y_size = 600
-screen = pygame.display.set_mode((x_size, y_size)) # 창 사이즈  설정
-
-pygame.display.set_caption("Wall Breaking") # 창 이름 설정
-
-clock = pygame.time.Clock() # FPS
-global x_pos
-x_pos = 100
-global y_pos
-y_pos = 500
-
-gulimfont = pygame.font.SysFont('굴림', 70)
+fps = 60
 
 def write(Text, color, x_pos, y_pos):
-    surface = gulimfont.render(Text, True, color)
+    surface = font.render(Text, True, color)
     rect = surface.get_rect()
     rect.center = (x_pos, y_pos)
     screen.blit(surface, rect)
-
+    
+def StartScreen():
+    while True:
+        screen.fill(WHITE)
+        write('Ball Breaking', BLACK, x_size / 2, y_size / 2)
+        write('Press S!', BLACK, x_size / 2, y_size * (2 / 3))
+        pygame.display.update()
+        
+        for event in pygame.event.get():
+            if (event.type == pygame.KEYDOWN):
+                if (event.key == pygame.K_s):
+                    return False
+            
+def GameoverScreen():
+    write('Stage Fail!!!', BLACK, x_size / 2, 200)
+    write('Try Again?', BLACK, x_size / 2, 270)
+    write('Y / N', BLACK, x_size / 2, 340)
+    pygame.display.update()
+    pygame.time.wait(500)
+    
+    for event in pygame.event.get():
+        if (event.type == pygame.KEYDOWN):
+            if (event.key == pygame.K_y):
+                return True
+            elif (event.key == pygame.K_n):
+                pygame.quit()
+                sys.exit()     
+    
 def clear(curscore):
     write('Stage Clear!!!', BLACK, x_size / 2, 300)
     write('score : ' + str(curscore), BLACK, x_size / 2, 370)
-
-def fail(curscore):
-    write('Stage Fail!!!', BLACK, x_size / 2, 200)
-    write('score : ' + str(curscore), BLACK, x_size / 2, 270)
-    write('Try Again?', BLACK, x_size / 2, 340)
-    write('Y / N', BLACK, x_size / 2, 410)
 
 def rungame(): # 시작 함수
     screen.fill(WHITE)
 
     blocklist = []
     for i in range(2, 7):
-        for j in range(1, 9):
+        for j in range(1, 10):
             blocklist.append(Block(GREEN, 2 + 41 * j, 52 + 16 * i, 40, 15))
     player = Player(BLUE, 100, 500, 60, 15)
     ball = Ball(RED, 200, 200, 15, 15)
-    ballspeed = [1, 2]
+    ballspeed = [2, 4]
     wall_1 = Wall(BLACK, 0, 50, 2, y_size)
     wall_2 = Wall(BLACK, 0, 50, x_size, 2)
     wall_3 = Wall(BLACK, x_size - 2, 50, 2, y_size)
     wall_4 = Wall(BLACK, 0, y_size - 2, x_size, 2)
-
-    roop = True
+    walllist = [wall_1, wall_2, wall_3, wall_4]
     score = 0
-    fps = 60
 
-    while roop:
+    while True:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
-                roop = False
+                pygame.quit()
+                sys.exit()
 
         keys = pygame.key.get_pressed()
         if(keys[pygame.K_LEFT]):
             player.move(-5, 0)
-            player.updatehitbox(-5, 0)
         elif(keys[pygame.K_RIGHT]):
             player.move(5, 0)
-            player.updatehitbox(5, 0)
 
         ball.move(ballspeed[0], ballspeed[1])
-        ball.updatehitbox(ballspeed[0], ballspeed[1])
 
         if(ball.checkcollision(wall_1.hitbox) or
            ball.checkcollision(wall_3.hitbox)):
@@ -199,27 +201,20 @@ def rungame(): # 시작 함수
             ballspeed[1] *= -1
 
         screen.fill(WHITE)
-        gulimfont = pygame.font.SysFont('굴림', 70)
-        curscore = gulimfont.render('score : ' + str(score), 1, BLACK)
+        curscore = font.render('score : ' + str(score), 1, BLACK)
         scorerect = curscore.get_rect()
         scorerect.center = (300, 25)
         screen.blit(curscore, scorerect)
         player.draw()
         ball.draw()
-        wall_1.draw()
-        wall_2.draw()
-        wall_3.draw()
-        wall_4.draw()
+        for wall in walllist:
+            wall.draw()
         for b in blocklist:
             b.draw()
         if(ball.checkcollision(wall_4.hitbox)):
             ballspeed[0] = 0
             ballspeed[1] = 0
-            fail(score)
-            if(keys[pygame.K_y]):
-                pygame.init() ##??
-            if(keys[pygame.K_n]):
-                break
+            break
         if(len(blocklist) == 0):
             ballspeed[0] = 0
             ballspeed[1] = 0
@@ -227,6 +222,20 @@ def rungame(): # 시작 함수
         pygame.display.flip() # 업데이트 함수
         clock.tick(fps)
 
-    pygame.quit()
+def main():
+    global clock, screen, font
+    pygame.init()
+    clock = pygame.time.Clock()
+    screen = pygame.display.set_mode((x_size, y_size))
+    font = pygame.font.SysFont('굴림', 70)
+    
+    
+    pygame.display.set_caption("Wall Breaking")
+    
+    StartScreen()
+    while True:
+        rungame()
+        GameoverScreen()
 
-rungame()
+if (__name__ == '__main__'):
+    main()
