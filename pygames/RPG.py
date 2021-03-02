@@ -44,7 +44,8 @@ HEIGHT = 'height'
 '''
 오브젝트 관련 리스트
 '''
-Enemylist= []
+Projectilelist = [] # 플레이어의 투사체리스트
+Enemylist = []
 Deadboollist = []
 
 Enemydic = {'Near': list(),
@@ -55,9 +56,9 @@ Itemlist = []
 '''
 텍스트 작성 함수
 '''
-font = pygame.font.SysFont('굴림', 40)
+Font = pygame.font.SysFont('굴림', 40)
 def write(Text, color, x_pos, y_pos):
-    surface = font.render(Text, True, color)
+    surface = Font.render(Text, True, color)
     rect = surface.get_rect()
     rect.center = (x_pos, y_pos)
     Screen.blit(surface, rect)
@@ -76,11 +77,8 @@ RED = (255, 0, 0)
 '''
 x_size = 800
 y_size = 600
-Screen = pygame.display.set_mode((x_size, y_size))
-Clock = pygame.time.Clock()
 Time = pygame.time.get_ticks()
 FPS = 60
-UPDATETIME = Clock.tick(FPS) / 1000
 
 # make enemylist!!!
 mapimage = pygame.image.load('display.png')
@@ -110,6 +108,31 @@ class Projectile(object):
         self.ATK = ATK
         self.SPEED = SPEED
         
+    def GetPos(self, pos):
+        try:
+            if (pos == 'x'):
+                return self.hitbox.x
+            elif (pos == 'y'):
+                return self.hitbox.y
+            else:
+                raise ValueError
+        except ValueError:
+            print('Not Pos!!!!')
+
+    def GetSize(self, length):
+        '''
+        오브젝트의 크기 반환
+        '''
+        try:
+            if (length == 'width'):
+                return self.hitbox.width
+            elif (length == 'height'):
+                return self.hitbox.height
+            else:
+                raise ValueError
+        except ValueError:
+            print('Not Lenght!!!')
+        
     def draw(self):
         '''
         스크린에다가 투사체를 그려넣음
@@ -125,6 +148,8 @@ class Projectile(object):
             self.hitbox.x += -self.SPEED
         else:
             self.hitbox.x += self.SPEED
+            
+        #if (self.hitbox.left <= MAP_LIMIT_LEFT or self.hitbox.right >= MAP_LIMIT_RIGHT):
 
     def checkcollision(self, Enemy):
         '''
@@ -195,7 +220,6 @@ class Life(object):
         self.isHitbox = True #사망 시에 히트박스 없는 것으로 처리
         self.index = 0 #각 스프라이트 리스트의 인덱스
         self.cur = 0 #각 스프라이트 덩어리의 인덱스
-        self.projectilelist = [] #플레이어가 공격판정이 정해질 때 리스트로 따로 관리함
         self.curtime = 0
         
     def SetStat(self, HP, ATK, DEF, SPEED):
@@ -270,12 +294,6 @@ class Life(object):
         오브젝트의 크기 반환
         '''
         pass
-    
-    def GetProjectiles(self):
-        '''
-        오브젝트의 투사체 리스트 반환
-        '''
-        return self.projectilelist
         
     def checkcollision(self, Anathor):
         '''
@@ -519,9 +537,9 @@ class Player(Life):
         super().attack()
         if (self.isDead is False):   #? 왜 isAttack is True가 조건문일때는 버그가? -> 키입력은 내가 설정한 bool 변수와는 하등 관계가 없나?
             if (self.direction == LEFT):
-                self.projectilelist.append(Projectile(self.hitbox.left, self.hitbox.y, self.ATK, LEFT))
+                Projectilelist.append(Projectile(self.hitbox.left, self.hitbox.y, self.ATK, LEFT))
             else:
-                self.projectilelist.append(Projectile(self.hitbox.right, self.hitbox.y, self.ATK, RIGHT))
+                Projectilelist.append(Projectile(self.hitbox.right, self.hitbox.y, self.ATK, RIGHT))
         
     def getItem(self, Item):
         '''
@@ -539,7 +557,7 @@ class Player(Life):
         super().updatepos()
         for enemy in Enemylist:
             if (self.isHitbox is True):
-                if (self.checkcollision(enemy) is True):
+                if (enemy.GetCondition(ATTACK) is True): #??? 충돌 판정일 경우에는 왜 피격 판정이 참값이 아닐까???
                     self.getattack(enemy)
 
 class Enemy(Life):
@@ -614,19 +632,20 @@ class Enemy(Life):
         
         if (abs(distance) <= self.attackRange):
             if (player.GetCondition(HITBOX) is True):
+                self.notWalk()
                 self.attack()
         
-        for projectile in player.GetProjectiles():
-            if (len(player.GetProjectiles()) != 0):
+        for projectile in Projectilelist:
+            if (len(Projectilelist) != 0):
                 if (self.isHitbox is True):
                     if (self.checkcollision(projectile) is True):
                         self.getattack(player)
-                        player.GetProjectiles().remove(bubble)
+                        Projectilelist.remove(projectile)
         '''
         if (self.isDead is True):
             self.dropItem()
         '''
-            
+        
         return distance
         
     def drawStat(self):
@@ -638,68 +657,124 @@ class Enemy(Life):
             pygame.draw.rect(Screen, RED, (self.hitbox.centerx - DisplayLength / 2,
                                            self.hitbox.bottom + 19, Length, 10))
 
-class Boss(Life):
-    def __init__(self):
+class Boss(Enemy):
+    def __init__(self, x_pos, y_pos=None):
+        super().__init__(x_pos, y_pos)
+        
+        self.curtime = 0
+        self.attackRange = 70
+        
+        rightstatic = [pygame.image.load('enemy_sprite/enemy_static.png')]
+        rightdead = [pygame.image.load('enemy_sprite/enemy_dead.png')]
+        rightwalk = [pygame.image.load('enemy_sprite/enemy_walk_' + str(i) + '.png') for i in range(1, 3)]
+        rightattack = [pygame.image.load('enemy_sprite/enemy_attack_' + str(i) + '.png') for i in range(1, 3)]
+        rightgetattack = [pygame.image.load('enemy_sprite/enemy_get_attack.png')]
+        leftwalk = [pygame.transform.flip(rightwalks, True, 0) for rightwalks in rightwalk]
+        leftstatic = [pygame.transform.flip(rightstatic[0], True, 0)]
+        leftdead = [pygame.transform.flip(rightdead[0], True, 0)]
+        leftattack = [pygame.transform.flip(rightattacks, True, 0) for rightattacks in rightattack]
+        leftgetattack = [pygame.transform.flip(rightgetattack[0], True, 0)]
+
+        self.rightlist = [rightstatic, rightwalk, rightattack, rightgetattack ,rightdead]
+        self.leftlist = [leftstatic, leftwalk, leftattack, leftgetattack ,leftdead]
+        self.curlist = self.leftlist
+        self.cursprite = self.curlist[self.cur][self.index]
+        self.hitbox = self.cursprite.get_rect(bottomleft=(self.x_pos, self.y_pos))
+            
+    def dropItem(self):
+        '''
+        아이템을 드롭시키는 함수, 나중에 확률에 따라 드랍시킬 생각
+        '''
+        pass
+    
+    def AI(self, player):
+        '''
+        기본적의 적의 AI
+        플레이어에 상태에 따라서 업데이트가 된다
+        '''
+        pass
+        
+    def drawStat(self):
         pass
 
+def rungame():
+    global Enemy
+    player = Player(300)
+    player.SetStat(1000, 100, 0, 10)
+    Enemylist.append(Enemy(600))
+    for Enemy in Enemylist:
+        Deadboollist.append(Enemy.GetCondition(DEAD))
+    for Enemy in Enemylist:
+        Enemy.SetStat(2500, 0, 40, 2)
 
-player = Player(300)
-player.SetStat(1000, 100, 0, 10)
-Enemylist.append(Enemy(100))
-for Enemy in Enemylist:
-    Deadboollist.append(Enemy.GetCondition(DEAD))
-for Enemy in Enemylist:
-    Enemy.SetStat(2500, 100, 40, 2)
-
-while True:
-    for event in pygame.event.get():
-        if (event.type == pygame.QUIT):
-            pygame.quit()
-            sys.exit()
-
-        if (event.type == pygame.KEYDOWN):
-            if (event.key == pygame.K_LEFT):
-                player.leftwalk()
-            elif (event.key == pygame.K_RIGHT):
-                player.rightwalk()
-            elif (event.key == pygame.K_UP):
-                player.jump()
-            elif (event.key == pygame.K_x):
-                player.attack()
-            elif (event.key == pygame.K_z): #아이템 획득 키#72381d
-                pass
-            elif (event.key == pygame.K_ESCAPE):
+    while True:
+        for event in pygame.event.get():
+            if (event.type == pygame.QUIT):
                 pygame.quit()
                 sys.exit()
 
-        elif (event.type == pygame.KEYUP):
-            if (event.key == pygame.K_LEFT or
-                event.key == pygame.K_RIGHT):
-                player.notWalk()
+            if (event.type == pygame.KEYDOWN):
+                if (event.key == pygame.K_LEFT):
+                    player.leftwalk()
+                elif (event.key == pygame.K_RIGHT):
+                    player.rightwalk()
+                elif (event.key == pygame.K_UP):
+                    player.jump()
+                elif (event.key == pygame.K_x):
+                    player.attack()
+                elif (event.key == pygame.K_z): #아이템 획득 키#72381d
+                    pass
+                elif (event.key == pygame.K_ESCAPE):
+                    pygame.quit()
+                    sys.exit()
 
-            elif (event.key == pygame.K_x):
-                player.notAttack()
+            elif (event.type == pygame.KEYUP):
+                if (event.key == pygame.K_LEFT or
+                    event.key == pygame.K_RIGHT):
+                    player.notWalk()
+
+                elif (event.key == pygame.K_x):
+                    player.notAttack()
                 
-    Screen.blit(mapscale, (0, 0))
-    player.draw()
-    player.update()
-    if (len(player.GetProjectiles()) != 0):
-        for bubble in player.GetProjectiles():
-            bubble.move()
-            bubble.draw()
+        Screen.blit(mapscale, (0, 0))
+        player.draw()
+        player.update()
+        if (len(Projectilelist) != 0):
+            for projectile in Projectilelist:
+                projectile.move()
+                projectile.draw()
+                
+            for projectile in Projectilelist:
+                if (projectile.GetPos(X) <= MAP_LIMIT_LEFT or 
+                    projectile.GetPos(X) + projectile.GetSize(WIDTH) >= MAP_LIMIT_RIGHT):
+                    Projectilelist.remove(projectile)
             
-    for enemy in Enemylist:
-        if (len(Enemylist) != 0):
-            enemy.AI(player)
-            enemy.draw()
-            enemy.update()
+        for enemy in Enemylist:
+            if (len(Enemylist) != 0):
+                enemy.AI(player)
+                enemy.draw()
+                enemy.update()
 
-    '''
-    for Item in Itemlist:
-        if (len(Itemlist) != 0):
-            Item.draw()
-    '''
+        '''
+        for Item in Itemlist:
+            if (len(Itemlist) != 0):
+                Item.draw()
+        '''
             
-    write(str(player.checkcollision(Enemylist[0])) + '   ' + str(player.isGetattack), BLACK, 400, 20)
-    pygame.display.update()
-    Clock.tick(FPS)
+        write(str(len(Projectilelist)), BLACK, 400, 20)
+        pygame.display.update()
+        Clock.tick(FPS)
+    
+def main():
+    global Clock, Screen, Font
+    pygame.init()
+    Clock = pygame.time.Clock()
+    Screen = pygame.display.set_mode((x_size, y_size))
+    Font = pygame.font.SysFont('굴림', 40)
+    
+    pygame.display.set_caption("RPG")
+    
+    rungame()
+    
+if (__name__ == '__main__'):
+    main()
