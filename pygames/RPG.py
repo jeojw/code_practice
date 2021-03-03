@@ -51,7 +51,7 @@ Deadboollist = []
 Enemydic = {'Near': list(),
             'Distance': list(),
             'Boss': list()} #추후 쓰일 적 딕셔너리 타입. 딕셔너리 타입에 따라 스텟을 조정할 예정
-Itemlist = []
+Itemlist = [] # 나중에 아이템 타입에 따라 딕셔너리로 정리할 예정
 
 '''
 텍스트 작성 함수
@@ -71,6 +71,7 @@ WHITE = (255, 255, 255)
 BLUE = (0, 0, 255)
 GREEN = (0, 255, 0)
 RED = (255, 0, 0)
+VIRGINRED = (204, 0, 0)
 
 '''
 기본적인 시스템 변수 설정
@@ -419,11 +420,11 @@ class Life(object):
         오브젝트의 위치를 업데이트 시키는 메서드
         '''
         self.hitbox.x = self.x_pos
-        self.hitbox.y = self.y_pos
+        self.hitbox.bottom = self.y_pos
 
         if (self.isOnGround is False):
             self.y_pos += GRAVITY
-        if (self.hitbox.bottom >= MAP_GROUND):
+        if (self.y_pos >= MAP_GROUND):
             self.y_pos = MAP_GROUND
             self.isOnGround = True
         if (self.hitbox.left <= MAP_LIMIT_LEFT):
@@ -557,7 +558,7 @@ class Player(Life):
         super().updatepos()
         for enemy in Enemylist:
             if (self.isHitbox is True):
-                if (enemy.GetCondition(ATTACK) is True): #??? 충돌 판정일 경우에는 왜 피격 판정이 참값이 아닐까???
+                if (self.checkcollision(enemy) is True and enemy.GetCondition(HITBOX) is True): #??? 충돌 판정일 경우에는 왜 피격 판정이 참값이 아닐까???
                     self.getattack(enemy)
 
 class Enemy(Life):
@@ -646,16 +647,21 @@ class Enemy(Life):
             self.dropItem()
         '''
         
-        return distance
-        
     def drawStat(self):
         Length = self.HP / 20
         DisplayLength = 2500 / 20
-        pygame.draw.rect(Screen, RED, (self.hitbox.centerx - DisplayLength / 2,
-                                       self.hitbox.bottom + 18, DisplayLength, 12), 1)
+        pygame.draw.rect(Screen, VIRGINRED, (self.hitbox.centerx - DisplayLength / 2,
+                                       self.hitbox.bottom + 18, DisplayLength, 12), 3)
         if (self.HP >= 0):
             pygame.draw.rect(Screen, RED, (self.hitbox.centerx - DisplayLength / 2,
-                                           self.hitbox.bottom + 19, Length, 10))
+                                           self.hitbox.bottom + 19, Length, 9))
+            
+    def updatesprite(self):# 추후 아이템 획득시에도 스프라이트 관련 업데이트를 추가할 것
+        super().updatesprite()
+        if (self.direction == LEFT):
+            self.hitbox = self.cursprite.get_rect(bottomright=(self.x_pos + self.attackRange, self.y_pos)) #좌측 공격일 경우 방향전환시 좌표오류를 잡아줌
+        else:
+            self.hitbox = self.cursprite.get_rect(bottomleft=(self.x_pos, self.y_pos))
 
 class Boss(Enemy):
     def __init__(self, x_pos, y_pos=None):
@@ -728,12 +734,10 @@ def rungame():
     player = Player(300)
     player.SetStat(1000, 100, 0, 10)
     Enemylist.append(Enemy(600))
-    Enemylist.append(Enemy(500))
-    Enemylist.append(Enemy(400))
     for Enemy in Enemylist:
         Deadboollist.append(Enemy.GetCondition(DEAD))
     for Enemy in Enemylist:
-        Enemy.SetStat(2500, 100, 40, 2)
+        Enemy.SetStat(2500, 0, 40, 2)
 
     while True:
         for event in pygame.event.get():
@@ -789,7 +793,7 @@ def rungame():
                 Item.draw()
         '''
             
-        write(str(len(Projectilelist)), BLACK, 400, 20)
+        write(str(player.hitbox.bottom) + '   ' + str(Enemylist[0].index), BLACK, 400, 20)
         pygame.display.update()
         Clock.tick(FPS)
     
