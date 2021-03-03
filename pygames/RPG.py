@@ -57,7 +57,8 @@ Itemlist = [] # 나중에 아이템 타입에 따라 딕셔너리로 정리할 �
 텍스트 작성 함수
 '''
 Font = pygame.font.SysFont('굴림', 40)
-def write(Text, color, x_pos, y_pos):
+
+def write(Font, Text, color, x_pos, y_pos):
     surface = Font.render(Text, True, color)
     rect = surface.get_rect()
     rect.center = (x_pos, y_pos)
@@ -89,7 +90,7 @@ class Projectile(object):
     '''
     해당 클래스는 투사체의 기본적인 틀을 정해놓았다. 기본적으로는 버블임
     '''
-    def __init__(self, x_pos, y_pos, ATK, direction):
+    def __init__(self, image, x_pos, y_pos, ATK, direction):
         '''
         생성자에서 위치, 스텟, 방향, 이미지, 히트박스 설정을 관리함
         '''
@@ -98,8 +99,8 @@ class Projectile(object):
         self.ATK = ATK
         self.SPEED = 7
         self.direction = direction
-        image = pygame.image.load('char_sprite/bubble.png')
-        self.image = pygame.transform.scale(image, (30, 30))
+        tmpimage = pygame.image.load(image)
+        self.image = pygame.transform.scale(tmpimage, (30, 30))
         self.hitbox = self.image.get_rect(topleft=(self.x_pos, self.y_pos))
         
     def SetStat(self, ATK, SPEED):
@@ -152,30 +153,21 @@ class Projectile(object):
             
         #if (self.hitbox.left <= MAP_LIMIT_LEFT or self.hitbox.right >= MAP_LIMIT_RIGHT):
 
-    def checkcollision(self, Enemy):
+    def checkcollision(self, enemy):
         '''
         충돌 판정
         '''
-        if (pygame.Rect.colliderect(self.hitbox, Enemy.hitbox)):
+        if (pygame.Rect.colliderect(self.hitbox, enemy.hitbox)):
             return True
         else:
             return False
-        
-class Ice(Projectile):
-    '''
-    플레이어가 발사하는 아이스
-    '''
-    def __init__(self, x_pos, y_pos, ATK, direction):
-        super().__init__(x_pos, y_pos, ATK, direction)
-        self.image = pygame.image.load('char_sprite/ice.png')
-        self.hitbox = self.image.get_rect(topleft=(self.x_pos, self.y_pos))
 
 class Item(object):
-    def __init__(self, x_pos, y_pos):
+    def __init__(self, x_pos, y_pos, image=None):
         self.x_pos = x_pos
         self.y_pos = y_pos
-        self.image = None
-        self.hitbox = self.image.get_rect(topleft=(self.x_pos, self.y_pos))
+        self.image = pygame.image.load('char_sprite/bubble.png')
+        self.hitbox = self.image.get_rect(bottomleft=(self.x_pos, self.y_pos))
         
     def draw(self):
         Screen.blit(self.image, (self.hitbox.x, self.hitbox.y))
@@ -482,7 +474,8 @@ class Player(Life):
         super().__init__(x_pos, y_pos)
         
         self.direction = RIGHT
-        self.atkcool = 5
+        self.items = 0
+        self.projectileimage = 'char_sprite/bubble.png'
         
         rightstatic = [pygame.image.load('char_sprite/char_static.png')]
         rightdead = [pygame.image.load('char_sprite/char_dead.png')]
@@ -538,28 +531,43 @@ class Player(Life):
         super().attack()
         if (self.isDead is False):   #? 왜 isAttack is True가 조건문일때는 버그가? -> 키입력은 내가 설정한 bool 변수와는 하등 관계가 없나?
             if (self.direction == LEFT):
-                Projectilelist.append(Projectile(self.hitbox.left, self.hitbox.y, self.ATK, LEFT))
+                Projectilelist.append(Projectile(self.projectileimage, self.hitbox.left, self.hitbox.y, self.ATK, LEFT))
             else:
-                Projectilelist.append(Projectile(self.hitbox.right, self.hitbox.y, self.ATK, RIGHT))
+                Projectilelist.append(Projectile(self.projectileimage, self.hitbox.right, self.hitbox.y, self.ATK, RIGHT))
         
-    def getItem(self, Item):
+    def getItem(self):
         '''
         아이템을 얻게 해주는 메서드
         '''
-        for Item in Itemlist:
-            pass
+        for item in Itemlist:
+            if (self.checkcollision(item) is True):
+                Itemlist.remove(item)
+                self.items = 30
+                self.ChangeStat(0, 10, 0, 0)
+                self.projectileimage = 'char_sprite/ice.png'
 
     def drawStat(self):
         Length = self.HP / 5
         if (self.HP >= 0):
             pygame.draw.rect(Screen, RED, (10, 10, Length, 30))
-        
-    def updatepos(self):
-        super().updatepos()
+            
+    def updateCondition(self):
         for enemy in Enemylist:
             if (self.isHitbox is True):
                 if (self.checkcollision(enemy) is True and enemy.GetCondition(HITBOX) is True): #??? 충돌 판정일 경우에는 왜 피격 판정이 참값이 아닐까???
                     self.getattack(enemy)
+        
+        if (self.items != 0):
+            if (self.isAttack is True):
+                self.items -= 1
+            
+        if (self.items < 0):
+            self.ChangeStat(0, -10, 0, 0)
+            self.projectileimage = 'char_sprite/bubble.png'
+            
+    def update(self):
+        self.updateCondition()
+        super().update()
 
 class Enemy(Life):
     def __init__(self, x_pos, y_pos=None):
@@ -618,7 +626,8 @@ class Enemy(Life):
         '''
         아이템을 드롭시키는 함수, 나중에 확률에 따라 드랍시킬 생각
         '''
-        Itemlist.append(Item(self.x_pos, self.y_pos))
+        #Itemlist.append(Item(self.x_pos, self.y_pos))
+        pass
     
     def AI(self, player):
         '''
@@ -642,10 +651,10 @@ class Enemy(Life):
                     if (self.checkcollision(projectile) is True):
                         self.getattack(player)
                         Projectilelist.remove(projectile)
-        '''
+        
         if (self.isDead is True):
             self.dropItem()
-        '''
+        
         
     def drawStat(self):
         Length = self.HP / 20
@@ -659,7 +668,7 @@ class Enemy(Life):
     def updatesprite(self):# 추후 아이템 획득시에도 스프라이트 관련 업데이트를 추가할 것
         super().updatesprite()
         if (self.direction == LEFT):
-            self.hitbox = self.cursprite.get_rect(bottomright=(self.x_pos + self.attackRange, self.y_pos)) #좌측 공격일 경우 방향전환시 좌표오류를 잡아줌
+            self.hitbox = self.cursprite.get_rect(bottomright=(self.x_pos + self.attackRange, self.y_pos)) #방향전환시 좌표오류를 잡아줌
         else:
             self.hitbox = self.cursprite.get_rect(bottomleft=(self.x_pos, self.y_pos))
 
@@ -728,16 +737,28 @@ def GameoverScreen():
     write(BigFont, 'Y / N', BLUE, x_size / 2, 440)
     pygame.display.update()
     pygame.time.wait(500)
+    
+    for event in pygame.event.get():
+        if (event.type == pygame.KEYDOWN):
+            if (event.key == pygame.K_y):
+                return True
+            elif (event.key == pygame.K_n):
+                pygame.quit()
+                sys.exit()
 
 def rungame():
-    global Enemy
+    pygame.init()
+    
+    global Enemy, Item
     player = Player(300)
-    player.SetStat(1000, 100, 0, 10)
-    Enemylist.append(Enemy(600))
+    enemy = Enemy(600)
+    player.SetStat(1000, 1000, 0, 10)
+    Enemylist.append(enemy)
+    Itemlist.append(Item(100, MAP_GROUND))
     for Enemy in Enemylist:
         Deadboollist.append(Enemy.GetCondition(DEAD))
     for Enemy in Enemylist:
-        Enemy.SetStat(2500, 0, 40, 2)
+        Enemy.SetStat(2500, 100, 40, 2)
 
     while True:
         for event in pygame.event.get():
@@ -754,8 +775,8 @@ def rungame():
                     player.jump()
                 elif (event.key == pygame.K_x):
                     player.attack()
-                elif (event.key == pygame.K_z): #아이템 획득 키#72381d
-                    pass
+                elif (event.key == pygame.K_z): #아이템 획득 키
+                    player.getItem()
                 elif (event.key == pygame.K_ESCAPE):
                     pygame.quit()
                     sys.exit()
@@ -786,14 +807,12 @@ def rungame():
                 enemy.AI(player)
                 enemy.draw()
                 enemy.update()
-
-        '''
+                
         for Item in Itemlist:
             if (len(Itemlist) != 0):
                 Item.draw()
-        '''
             
-        write(str(player.hitbox.bottom) + '   ' + str(Enemylist[0].index), BLACK, 400, 20)
+        write(SmallFont, str(player.GetStat(ATK)) + '   ' + str(player.items), BLACK, 400, 20)
         pygame.display.update()
         Clock.tick(FPS)
     
