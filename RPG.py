@@ -1,6 +1,5 @@
 import pygame
 import sys
-import random
 
 pygame.init() # pygame 초기화
 
@@ -43,26 +42,16 @@ WIDTH = 'width'
 HEIGHT = 'height'
 
 '''
-아이템 이미지 관련 변수(나중에 그릴 생각, 일단 임시 변수)
-'''
-ICE = 'a'
-ARMOR = 'b'
-HASTE = 'c'
-
-'''
 오브젝트 관련 리스트
 '''
 Projectilelist = [] # 플레이어의 투사체리스트
-Enemylist = [] # 화면에 그릴 적 리스트
-Deadboollist = [] # 적들이 생존해있는지 아닌지 체크해주는 리스트. 만일 모든 리스트 요소가 참일 경우 스테이지 종료되도록 설정
+Enemylist = []
+Deadboollist = []
 
 Enemydic = {'Near': list(),
             'Distance': list(),
             'Boss': list()} #추후 쓰일 적 딕셔너리 타입. 딕셔너리 타입에 따라 스텟을 조정할 예정
-ItmeTypes = []
 Itemlist = [] # 나중에 아이템 타입에 따라 딕셔너리로 정리할 예정
-
-tmp = [1]
 
 '''
 텍스트 작성 함수
@@ -162,8 +151,7 @@ class Projectile(object):
         else:
             self.hitbox.x += self.SPEED
             
-        if (self.hitbox.left <= MAP_LIMIT_LEFT or self.hitbox.right >= MAP_LIMIT_RIGHT):
-            return 'delete'
+        #if (self.hitbox.left <= MAP_LIMIT_LEFT or self.hitbox.right >= MAP_LIMIT_RIGHT):
 
     def checkcollision(self, enemy):
         '''
@@ -211,7 +199,7 @@ class Life(object):
         self.ATK = 0
         self.DEF = 0
         self.SPEED = 0
-        self.KNOCKBACK = 80 #피격당할 시 넉백되는 거리를 설정
+        self.GETATTACK = 80 #피격당할 시 넉백되는 거리를 설정
         
         '''
         오브젝트의 전체적인 상태를 나타내는 변수들
@@ -227,12 +215,6 @@ class Life(object):
         self.cur = 0 #각 스프라이트 덩어리의 인덱스
         self.curtime = 0
         
-    def InitStat(self):
-        '''
-        초기 스텟
-        '''
-        pass
-    
     def SetStat(self, HP, ATK, DEF, SPEED):
         '''
         오브젝트의 스텟을 설정하는 메서드
@@ -364,17 +346,17 @@ class Life(object):
         self.HP -= (Another.GetStat(ATK) - self.DEF)
         if (self.x_pos + self.hitbox.width / 2 > Another.GetPos(X) + Another.GetSize(WIDTH) / 2):
             self.direction = LEFT
-            self.x_pos += self.KNOCKBACK
+            self.x_pos += self.GETATTACK
         else:
             self.direction = RIGHT
-            self.x_pos -= self.KNOCKBACK
+            self.x_pos -= self.GETATTACK
 
     def dead(self):
         '''
         오브젝트가 죽었음을 나타내는 메서드
         '''
         self.isDead = True
-        self.KNOCKBACK = 0
+        self.GETATTACK = 0
         self.isHitbox = False
         self.isWalk = False
         self.isAttack = False
@@ -512,12 +494,6 @@ class Player(Life):
         self.cursprite = self.curlist[self.cur][self.index]
         self.hitbox = self.cursprite.get_rect(bottomleft=(self.x_pos, self.y_pos))
         
-    def InitStat(self):
-        self.HP = 500
-        self.ATK = 50
-        self.DEF = 0
-        self.SPEED = 10
-        
     def GetPos(self, pos):
         '''
         오브젝트의 위치 반환
@@ -558,10 +534,6 @@ class Player(Life):
                 Projectilelist.append(Projectile(self.projectileimage, self.hitbox.left, self.hitbox.y, self.ATK, LEFT))
             else:
                 Projectilelist.append(Projectile(self.projectileimage, self.hitbox.right, self.hitbox.y, self.ATK, RIGHT))
-                
-        for projectile in Projectilelist:
-            if (projectile.move() == 'delete'):
-                Projectilelist.remove(projectile)
         
     def getItem(self):
         '''
@@ -579,25 +551,22 @@ class Player(Life):
         if (self.HP >= 0):
             pygame.draw.rect(Screen, RED, (10, 10, Length, 30))
             
-    def updateItemCondition(self):
-        '''
-        플레이어의 아이템 획득마다 상태를 업데이트시켜주는 함수
-        '''
-        
+    def updateCondition(self):
         for enemy in Enemylist:
             if (self.isHitbox is True):
                 if (self.checkcollision(enemy) is True and enemy.GetCondition(HITBOX) is True): #??? 충돌 판정일 경우에는 왜 피격 판정이 참값이 아닐까???
                     self.getattack(enemy)
-                    
+        
         if (self.items != 0):
-            pass
+            if (self.isAttack is True):
+                self.items -= 1
             
-        if (self.items == 0):
-            self.InitStat()
+        if (self.items < 0):
+            self.ChangeStat(0, -10, 0, 0)
             self.projectileimage = 'char_sprite/bubble.png'
             
     def update(self):
-        self.updateItemCondition()
+        self.updateCondition()
         super().update()
 
 class Enemy(Life):
@@ -605,7 +574,6 @@ class Enemy(Life):
         super().__init__(x_pos, y_pos)
         
         self.direction = LEFT
-        self.isDrop = False
         self.curtime = 0
         self.attackRange = 70
         
@@ -654,14 +622,12 @@ class Enemy(Life):
         except ValueError:
             print('Not Lenght!!!')
             
-    
-            
     def dropItem(self):
         '''
         아이템을 드롭시키는 함수, 나중에 확률에 따라 드랍시킬 생각
         '''
-        if (len(Itemlist) != len(tmp)):
-            Itemlist.append(Item(self.x_pos, self.y_pos))
+        #Itemlist.append(Item(self.x_pos, self.y_pos))
+        pass
     
     def AI(self, player):
         '''
@@ -688,6 +654,7 @@ class Enemy(Life):
         
         if (self.isDead is True):
             self.dropItem()
+        
         
     def drawStat(self):
         Length = self.HP / 20
@@ -785,13 +752,13 @@ def rungame():
     global Enemy, Item
     player = Player(300)
     enemy = Enemy(600)
-    player.InitStat()
+    player.SetStat(1000, 1000, 0, 10)
     Enemylist.append(enemy)
     Itemlist.append(Item(100, MAP_GROUND))
     for Enemy in Enemylist:
         Deadboollist.append(Enemy.GetCondition(DEAD))
     for Enemy in Enemylist:
-        Enemy.SetStat(2500, 40, 10, 2)
+        Enemy.SetStat(2500, 100, 40, 2)
 
     while True:
         for event in pygame.event.get():
@@ -841,11 +808,11 @@ def rungame():
                 enemy.draw()
                 enemy.update()
                 
-        for item in Itemlist:
+        for Item in Itemlist:
             if (len(Itemlist) != 0):
-                item.draw()
+                Item.draw()
             
-        write(SmallFont, str(len(Itemlist)) + '   ' + str(Enemylist[0].AI(player)), BLACK, 400, 20)
+        write(SmallFont, str(player.GetStat(ATK)) + '   ' + str(player.items), BLACK, 400, 20)
         pygame.display.update()
         Clock.tick(FPS)
     
