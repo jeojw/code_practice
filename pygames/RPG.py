@@ -1,6 +1,7 @@
 import pygame
 import sys
 import random
+import queue
 
 pygame.init() # pygame 초기화
 
@@ -43,19 +44,18 @@ WIDTH = 'width'
 HEIGHT = 'height'
 
 '''
-아이템 이미지 관련 변수(나중에 그릴 생각, 일단 임시 변수)
+아이템 이미지, 이펙트 관련 변수
 '''
 ICE = 'char_sprite/ice.png'
-ARMOR = 'b'
-HASTE = 'c'
+ARMOR = 'items/shield.png'
+HASTE = 'items/haste.png'
 
 BASIC = 'char_sprite/bubble.png'
+REINFORCE = 'char_sprite/ice.png'
 
 '''
 오브젝트 관련 리스트 및 변수
 '''
-counts = 0
-Projectilelist = [] # 플레이어의 투사체리스트
 Enemylist = [] # 화면에 그릴 적 리스트
 Deadboollist = [] # 적들이 생존해있는지 아닌지 체크해주는 리스트. 만일 모든 리스트 요소가 참일 경우 스테이지 종료되도록 설정
 
@@ -64,8 +64,6 @@ Enemydic = {'Near': list(),
             'Boss': list()} #추후 쓰일 적 딕셔너리 타입. 딕셔너리 타입에 따라 스텟을 조정할 예정
 ItemTypes = [ICE, ARMOR, HASTE] # 아이템 타입, 주로 스프라이트 파일로 통해 아이템 획득을 구분할 예정
 Itemlist = [] # 아이템을 담는 리스트
-
-tmp = [1]
 
 '''
 텍스트 작성 함수
@@ -93,7 +91,7 @@ VIRGINRED = (204, 0, 0)
 '''
 x_size = 800
 y_size = 600
-Time = pygame.time.get_ticks()
+startTime = pygame.time.get_ticks()
 FPS = 60
 
 # make enemylist!!!
@@ -479,7 +477,7 @@ class Life(object):
         if (self.HP <= 0):
             self.cur = 4
             self.dead()
-            
+        
         self.index += 1
         if (self.index >= len(self.curlist[self.cur])):
             self.index = 0
@@ -504,7 +502,10 @@ class Player(Life):
         self.itemType = None
         self.projectileimage = 'char_sprite/bubble.png'
         self.projectilelist = []
-        self.counts = 0 # 투사체 개수
+        self.itemQueue = queue.Queue(1)
+        self.ammunition = 30 # 강화 공격 제한 개수
+        self.startTime = 0
+        self.elapsedTime = 0
         
         rightstatic = [pygame.image.load('char_sprite/char_static.png')]
         rightdead = [pygame.image.load('char_sprite/char_dead.png')]
@@ -567,7 +568,8 @@ class Player(Life):
         (overriding)
         '''
         super().attack()
-        self.counts += 1
+        if (self.itemType == ICE):
+            self.ammunition -= 1
         if (self.isDead is False):   #? 왜 isAttack is True가 조건문일때는 버그가? -> 키입력은 내가 설정한 bool 변수와는 하등 관계가 없나?
             if (self.direction == LEFT):
                 self.projectilelist.append(Projectile(self.projectileimage, self.hitbox.left, self.hitbox.y, self.ATK, LEFT))
@@ -588,25 +590,38 @@ class Player(Life):
             if (self.checkcollision(item) is True):
                 Itemlist.remove(item)
                 self.isChangeStat = True
+                self.itemQueue.push(item.GetImage())
                 if (item.GetImage() == ICE):
-                    self.counts = 0
                     self.itemType = ICE
                     self.ChangeStat(0, 10, 0, 0)
-                    self.projectileimage = ICE
+                    self.projectileimage = REINFORCE
                 elif (item.GetImage() == ARMOR):
                     self.itemType = ARMOR
+                    self.ChangeStat(0, 0, 20, 0)
+                    self.startTime = pygame.time.get_ticks()
                 elif (item.GetImage() == HASTE):
                     self.itemType = HASTE
+                    self.ChangeStat(0, 0, 0, 5)
+                    self.startTime = pygame.time.get_ticks()
 
     def drawStat(self):
         Length = self.HP / 5
         if (self.HP >= 0):
             pygame.draw.rect(Screen, RED, (10, 10, Length, 30))
             
+        if (self.itemType == ICE):
+            pass
+        elif (self.itemType == ARMOR):
+            pass
+        elif (self.itemType == HASTE):
+            pass
+            
     def updateCondition(self):
         '''
         플레이어의 아이템 획득마다 상태를 업데이트시켜주는 함수
         '''
+        itemQueue = queue.Queue(1)
+        itemQueue.put('None')
         for enemy in Enemylist:
             if (self.isHitbox is True):
                 if (self.checkcollision(enemy) is True and enemy.GetCondition(HITBOX) is True): #??? 충돌 판정일 경우에는 왜 피격 판정이 참값이 아닐까???
@@ -614,16 +629,30 @@ class Player(Life):
                     
         if (self.getitem is True and self.isChangeStat is True):
             if (self.itemType == ICE):
-                if (self.counts >= 30):
+                if (self.ammunition == 0):
+                    itemQueue.pop()
                     self.itemType = None
                     self.ChangeStat(0, -10, 0, 0)
                     self.projectileimage = BASIC
                     self.isChangeStat = False
-                    self.counts = 0
+                    self.ammunition = 30
             elif (self.itemType == ARMOR):
-                pass
+                self.elapsedTime = (pygame.time.get_ticks() - self.startTime) / 1000
+                if (self.elapsedTime > 20):
+                    self.itemType = None
+                    self.ChangeStat(0, 0, -20, 0)
+                    self.isChangeStat = False
+                    self.elapsedTime = 0
+                    self.startTime = 0
             elif (self.itemType == HASTE):
-                pass
+                self.elapsedTime = (pygame.time.get_ticks() - self.startTime) / 1000
+                if (self.elapsedTime > 20):
+                    self.itemType = None
+                    self.ChangeStat(0, 0, 0, -5)
+                    self.isChangeStat = False
+                    self.elapsedTime = 0
+                    self.startTime = 0
+
         
     def update(self):
         self.updateCondition()
@@ -634,9 +663,9 @@ class Enemy(Life):
         super().__init__(x_pos, y_pos)
         
         self.direction = LEFT
-        self.isDrop = False
+        self.isDrop = False # 아이템 드랍 관련 불값
         self.curtime = 0
-        self.attackRange = 70
+        self.attackRange = 70 # 공격 범위
         
         rightstatic = [pygame.image.load('enemy_sprite/enemy_static.png')]
         rightdead = [pygame.image.load('enemy_sprite/enemy_dead.png')]
@@ -688,7 +717,7 @@ class Enemy(Life):
         아이템을 드롭시키는 함수, 나중에 확률에 따라 드랍시킬 생각
         '''
         image = random.choice(ItemTypes)
-        Itemlist.append(Item(self.x_pos, self.y_pos))
+        Itemlist.append(Item(self.x_pos, self.y_pos, image))
     
     def AI(self, player):
         '''
@@ -815,7 +844,8 @@ def rungame():
     enemy = Enemy(600)
     player.InitStat()
     Enemylist.append(enemy)
-    Itemlist.append(Item(100, MAP_GROUND, ICE))
+    Itemlist.append(Item(100, MAP_GROUND, ARMOR))
+    Itemlist.append(Item(150, MAP_GROUND, ARMOR))
     for Enemy in Enemylist:
         Deadboollist.append(Enemy.GetCondition(DEAD))
     for Enemy in Enemylist:
@@ -873,7 +903,7 @@ def rungame():
             if (len(Itemlist) != 0):
                 item.draw()
             
-        write(SmallFont, str(player.counts) + '   ' + str(player.projectileimage), BLACK, 400, 20)
+        write(SmallFont, str(player.DEF) + '   ' + str(player.elapsedTime), BLACK, 400, 20)
         pygame.display.update()
         Clock.tick(FPS)
     
