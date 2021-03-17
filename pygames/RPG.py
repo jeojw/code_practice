@@ -1,7 +1,6 @@
 import pygame
 import sys
 import random
-import queue
 
 pygame.init() # pygame 초기화
 
@@ -502,8 +501,8 @@ class Player(Life):
         self.itemType = None
         self.projectileimage = 'char_sprite/bubble.png'
         self.projectilelist = []
-        self.itemQueue = queue.Queue(1)
         self.ammunition = 30 # 강화 공격 제한 개수
+        self.duration = 20
         self.startTime = 0
         self.elapsedTime = 0
         
@@ -524,11 +523,18 @@ class Player(Life):
         self.cursprite = self.curlist[self.cur][self.index]
         self.hitbox = self.cursprite.get_rect(bottomleft=(self.x_pos, self.y_pos))
         
-    def InitStat(self):
-        self.HP = 500
+    def InitCondition(self):
+        '''
+        플레이어의 체력을 제외한 모든 스텟 및 시간을 초기화시키는 메서드
+        주로 아이템을 중복으로 먹었을 시에 활성화 됨
+        '''
         self.ATK = 50
         self.DEF = 0
         self.SPEED = 10
+        
+        self.duration = 20
+        self.startTime = 0
+        self.elapsedTime = 0
         
     def GetPos(self, pos):
         '''
@@ -590,17 +596,19 @@ class Player(Life):
             if (self.checkcollision(item) is True):
                 Itemlist.remove(item)
                 self.isChangeStat = True
-                self.itemQueue.push(item.GetImage())
                 if (item.GetImage() == ICE):
                     self.itemType = ICE
+                    self.InitCondition()
                     self.ChangeStat(0, 10, 0, 0)
                     self.projectileimage = REINFORCE
                 elif (item.GetImage() == ARMOR):
                     self.itemType = ARMOR
+                    self.InitCondition()
                     self.ChangeStat(0, 0, 20, 0)
                     self.startTime = pygame.time.get_ticks()
                 elif (item.GetImage() == HASTE):
                     self.itemType = HASTE
+                    self.InitCondition()
                     self.ChangeStat(0, 0, 0, 5)
                     self.startTime = pygame.time.get_ticks()
 
@@ -608,20 +616,25 @@ class Player(Life):
         Length = self.HP / 5
         if (self.HP >= 0):
             pygame.draw.rect(Screen, RED, (10, 10, Length, 30))
+        
+        ICEICON = pygame.image.load('char_sprite/ice.png')
+        ARMORICON = pygame.image.load('items/shield.png')
+        HASTEICON = pygame.image.load('items/haste.png')
             
         if (self.itemType == ICE):
-            pass
+            Screen.blit(ICEICON, (200, 10))
+            write(SmallFont, ' X ' + str(self.ammunition), BLACK, 270, 20)
         elif (self.itemType == ARMOR):
-            pass
+            Screen.blit(ARMORICON, (200, 10))
+            write(SmallFont, ' : ' + str(self.duration - self.elapsedTime) + ' sec ', BLACK, 290, 20)
         elif (self.itemType == HASTE):
-            pass
+            Screen.blit(HASTEICON, (200, 10))
+            write(SmallFont, ' : ' + str(self.duration - self.elapsedTime) + ' sec ', BLACK, 290, 20)
             
     def updateCondition(self):
         '''
-        플레이어의 아이템 획득마다 상태를 업데이트시켜주는 함수
+        플레이어의의 상태를 업데이트 시켜주는 함수
         '''
-        itemQueue = queue.Queue(1)
-        itemQueue.put('None')
         for enemy in Enemylist:
             if (self.isHitbox is True):
                 if (self.checkcollision(enemy) is True and enemy.GetCondition(HITBOX) is True): #??? 충돌 판정일 경우에는 왜 피격 판정이 참값이 아닐까???
@@ -630,26 +643,28 @@ class Player(Life):
         if (self.getitem is True and self.isChangeStat is True):
             if (self.itemType == ICE):
                 if (self.ammunition == 0):
-                    itemQueue.pop()
                     self.itemType = None
                     self.ChangeStat(0, -10, 0, 0)
                     self.projectileimage = BASIC
                     self.isChangeStat = False
+                    self.getitem = False
                     self.ammunition = 30
             elif (self.itemType == ARMOR):
-                self.elapsedTime = (pygame.time.get_ticks() - self.startTime) / 1000
+                self.elapsedTime = int((pygame.time.get_ticks() - self.startTime) / 1000)
                 if (self.elapsedTime > 20):
                     self.itemType = None
                     self.ChangeStat(0, 0, -20, 0)
                     self.isChangeStat = False
+                    self.getitem = False
                     self.elapsedTime = 0
                     self.startTime = 0
             elif (self.itemType == HASTE):
-                self.elapsedTime = (pygame.time.get_ticks() - self.startTime) / 1000
+                self.elapsedTime = int((pygame.time.get_ticks() - self.startTime) / 1000)
                 if (self.elapsedTime > 20):
                     self.itemType = None
                     self.ChangeStat(0, 0, 0, -5)
                     self.isChangeStat = False
+                    self.getitem = False
                     self.elapsedTime = 0
                     self.startTime = 0
 
@@ -842,9 +857,9 @@ def rungame():
     global Enemy, Item
     player = Player(300)
     enemy = Enemy(600)
-    player.InitStat()
+    player.SetStat(500, 50, 0, 7)
     Enemylist.append(enemy)
-    Itemlist.append(Item(100, MAP_GROUND, ARMOR))
+    Itemlist.append(Item(100, MAP_GROUND, ICE))
     Itemlist.append(Item(150, MAP_GROUND, ARMOR))
     for Enemy in Enemylist:
         Deadboollist.append(Enemy.GetCondition(DEAD))
