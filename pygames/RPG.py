@@ -24,8 +24,8 @@ SPEED = 'speed'
 '''
 오브젝트의 컨디션 관련 전역변수
 '''
-LEFT = 'LEFT'
-RIGHT = 'RIGHT'
+LEFT = 'left'
+RIGHT = 'right'
 DIRECTION = 'direction'
 WALK = 'walk'
 ATTACK = 'attack'
@@ -90,7 +90,6 @@ VIRGINRED = (204, 0, 0)
 '''
 x_size = 800
 y_size = 600
-startTime = pygame.time.get_ticks()
 FPS = 60
 
 # make enemylist!!!
@@ -230,7 +229,6 @@ class Life(object):
         self.isChangeStat = False # 스텟 변경이 되는지에 대한 불값
         self.index = 0 # 각 스프라이트 리스트의 인덱스
         self.cur = 0 #각 스프라이트 덩어리의 인덱스
-        self.curtime = 0
         
     def InitStat(self):
         '''
@@ -457,7 +455,6 @@ class Life(object):
         '''
         오브젝트의 스프라이트 및 히트박스를 업데이트해주는 메서드
         '''
-        
         if (self.direction == LEFT):
             self.curlist = self.leftlist
         elif (self.direction == RIGHT):
@@ -476,7 +473,7 @@ class Life(object):
         if (self.HP <= 0):
             self.cur = 4
             self.dead()
-        
+            
         self.index += 1
         if (self.index >= len(self.curlist[self.cur])):
             self.index = 0
@@ -679,7 +676,6 @@ class Enemy(Life):
         
         self.direction = LEFT
         self.isDrop = False # 아이템 드랍 관련 불값
-        self.curtime = 0
         self.attackRange = 70 # 공격 범위
         
         rightstatic = [pygame.image.load('enemy_sprite/enemy_static.png')]
@@ -698,6 +694,9 @@ class Enemy(Life):
         self.curlist = self.leftlist
         self.cursprite = self.curlist[self.cur][self.index]
         self.hitbox = self.cursprite.get_rect(bottomleft=(self.x_pos, self.y_pos))
+        
+        self.animation_time = round(100 / len(self.curlist[self.cur] * 100), 2)
+        self.current_time = 0
         
     def GetPos(self, pos):
         '''
@@ -771,7 +770,36 @@ class Enemy(Life):
                                            self.hitbox.bottom + 19, Length, 9))
             
     def updatesprite(self):# 추후 아이템 획득시에도 스프라이트 관련 업데이트를 추가할 것
-        super().updatesprite()
+        if (self.direction == LEFT):
+            self.curlist = self.leftlist
+        elif (self.direction == RIGHT):
+            self.curlist = self.rightlist
+            
+        self.current_time += Clock.tick(60) / 1000
+        
+        if (self.isWalk is False or self.isAttack is False or
+            self.isDead is False or self.isGetattack is False):
+            self.cur = 0
+        if (self.isWalk is True):
+            self.cur = 1
+        if (self.isAttack is True):
+            self.cur = 2
+        if (self.isGetattack is True):
+            self.cur = 3
+            self.notGetattack()
+        if (self.HP <= 0):
+            self.cur = 4
+            self.dead()
+
+        if (self.current_time >= self.animation_time):
+            self.current_time = 0
+
+            self.index += 1
+            if (self.index >= len(self.curlist[self.cur])):
+                self.index = 0
+                    
+        self.cursprite = self.curlist[self.cur][self.index]
+            
         if (self.direction == LEFT):
             self.hitbox = self.cursprite.get_rect(bottomright=(self.x_pos + self.attackRange, self.y_pos)) #방향전환시 좌표오류를 잡아줌
         else:
@@ -780,8 +808,6 @@ class Enemy(Life):
 class Boss(Enemy):
     def __init__(self, x_pos, y_pos=None):
         super().__init__(x_pos, y_pos)
-        
-        self.curtime = 0
         self.attackRange = 70
         
         rightstatic = [pygame.image.load('enemy_sprite/enemy_static.png')]
@@ -918,7 +944,7 @@ def rungame():
             if (len(Itemlist) != 0):
                 item.draw()
             
-        write(SmallFont, str(player.DEF) + '   ' + str(player.elapsedTime), BLACK, 400, 20)
+        write(SmallFont, str(Enemylist[0].index) + '   ' + str(Enemylist[0].current_time), BLACK, 400, 20)
         pygame.display.update()
         Clock.tick(FPS)
     
