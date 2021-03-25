@@ -44,7 +44,7 @@ WIDTH = 'width'
 HEIGHT = 'height'
 
 '''
-아이템 이미지, 이펙트 관련 변수
+아이템 아이콘, 이펙트 관련 변수
 '''
 ICE = 'char_sprite/ice.png'
 ARMOR = 'items/shield.png'
@@ -230,11 +230,19 @@ class Life(object):
         self.isChangeStat = False # 스텟 변경이 되는지에 대한 불값
         self.isChangeCondition = False
         self.Condition = STATIC # 오브젝트의 컨디션
-        self.ChangeDelay = 0.5 # 컨디션 전환 딜레이
+        
+        self.ChangeDelay = 0.1 # 컨디션 전환 딜레이
         self.delayStart = 0 # 딜레이 시작 시간
         self.delayElapsed = 0 # 딜레이 경과 시간
+        self.atkcool = 2 # 공격 쿨타임
+        self.coolStart = 0 # 쿨타임 시작 시간
+        self.coolElapsed = 0 # 쿨타임 경과 시간
+        
         self.index = 0 # 각 스프라이트 리스트의 인덱스
         self.cur = 0 #각 스프라이트 덩어리의 인덱스
+                
+        self.animation_time = 0 # 스프라이트 업데이트 총 주기
+        self.current_time = 0 # 경과 시간
         
     def InitStat(self):
         '''
@@ -339,7 +347,13 @@ class Life(object):
         self.isGetattack = False
         self.isDead = False
         
-    def leftwalk(self):
+    def left(self):
+        self.direction = LEFT
+    
+    def right(self):
+        self.direction = RIGHT
+        
+    def walk(self):
         '''
         왼쪽으로 걷는 상태를 설정하는 메서드
         '''
@@ -348,26 +362,10 @@ class Life(object):
         else:
             self.isChangeCondition = False
         
-        if (self.isDead is False and self.Condition != GETATTACK): # 만일 이 조건문이 없을 시 죽은 후에도 방향전환이 됨. 아래도 동일
-            self.isWalk = True
-            self.isAttack = False
-            self.direction = LEFT
-            self.delayStart = pygame.time.get_ticks()
-        
-    def rightwalk(self):
-        '''
-        오른쪽으로 걷는 상태를 설정하는 메서드
-        '''
-        if (self.Condition != WALK):
-            self.isChangeCondition = True
-        else:
-            self.isChangeCondition = False
-            
-        if (self.isDead is False and self.Condition != GETATTACK):
+        if (self.Condition != DEAD and self.Condition != GETATTACK): # 만일 이 조건문이 없을 시 죽은 후에도 방향전환이 됨. 아래도 동일
             self.isWalk = True
             self.isAttack = False
             self.isGetattack = False
-            self.direction = RIGHT
             self.delayStart = pygame.time.get_ticks()
         
     def jump(self):
@@ -375,7 +373,7 @@ class Life(object):
         오브젝트의 점프 상태를 설정하는 메서드
         오브젝트가 지면으로부터 붕 떠져있는 경우 더 이상 위로 올라가지 않게 수정
         '''
-        if (self.isDead is False):
+        if (self.Condition != DEAD):
             self.isOnGround = False
             if (self.hitbox.bottom < MAP_GROUND):
                 self.y_pos += 0
@@ -438,7 +436,10 @@ class Life(object):
         '''
         오브젝트의 위치에 따라 화면에 그려주는 메서드
         '''
-        Screen.blit(self.cursprite, (self.hitbox.x, self.hitbox.y))
+        if (self.direction == LEFT):
+            Screen.blit(pygame.transform.flip(self.cursprite, True, False), (self.hitbox.x, self.hitbox.y))
+        else:
+            Screen.blit(self.cursprite, (self.hitbox.x, self.hitbox.y))
 
     def drawStat(self):
         '''
@@ -507,48 +508,48 @@ class Life(object):
             elif (self.direction == RIGHT):
                 self.x_pos += self.SPEED
 
-    def updatesprite(self):# 추후 아이템 획득시에도 스프라이트 관련 업데이트를 추가할 것
+    def updatesprite(self, dt):# 추후 아이템 획득시에도 스프라이트 관련 업데이트를 추가할 것
         '''
-        오브젝트의 스프라이트 및 히트박스를 업데이트해주는 메서드
-        각 컨디션이 업데이트 될 때마다 딜레이 시간이 업데이트됨
-        '''
-        if (self.direction == LEFT):
-            self.curlist = self.leftlist
-        elif (self.direction == RIGHT):
-            self.curlist = self.rightlist
+        적의 스프라이트를 업데이트 시켜주는 함수
+        스프라이트 업데이트 지연까지 추가함
+        '''  
+        self.current_time += dt
         
         if (self.Condition == STATIC):
+            self.updateCycle()
             self.cur = 0
-            self.updateCycle()
         if (self.Condition == WALK):
+            self.updateCycle()
             self.cur = 1
-            self.updateCycle()
         if (self.Condition == ATTACK):
+            self.updateCycle()
             self.cur = 2
-            self.updateCycle()
         if (self.Condition == GETATTACK):
-            self.cur = 3
             self.updateCycle()
+            self.cur = 3
         if (self.HP <= 0):
             self.cur = 4
             self.dead()
             self.isChangeCondition = False
-            
-        self.index += 1
-        if (self.index >= len(self.curlist[self.cur])):
-            self.index = 0
         
-        self.cursprite = self.curlist[self.cur][self.index]
+        if (self.current_time >= self.animation_time or self.isChangeCondition is True):
+            self.current_time = 0
+            
+            self.index += 1
+            if (self.index >= len(self.spritelist[self.cur]) or self.isChangeCondition is True):
+                self.index = 0
+        
+        self.cursprite = self.spritelist[self.cur][self.index]
         self.hitbox = self.cursprite.get_rect(bottomleft=(self.x_pos, self.y_pos))
         
-    def update(self):
+    def update(self, dt):
         '''
         통합 update 메서드
         가독성을 위해
         '''
         self.updateCondition()
         self.updatepos()
-        self.updatesprite()
+        self.updatesprite(dt)
         
 class Player(Life):
     def __init__(self, x_pos, y_pos=None):
@@ -564,22 +565,17 @@ class Player(Life):
         self.itemStart = 0 # 아이템 시작 시간
         self.itemElapsed = 0 # 아이템 획득 후 경과시간
         
-        rightstatic = [pygame.image.load('char_sprite/char_static.png')]
-        rightdead = [pygame.image.load('char_sprite/char_dead.png')]
-        rightwalk = [pygame.image.load('char_sprite/char_walk_' + str(i) + '.png') for i in range(1, 4)]
-        rightattack = [pygame.image.load('char_sprite/char_attack.png')]
-        rightgetattack = [pygame.image.load('char_sprite/char_get_attack.png')]
-        leftwalk = [pygame.transform.flip(rightwalks, True, 0) for rightwalks in rightwalk]
-        leftstatic = [pygame.transform.flip(rightstatic[0], True, 0)]
-        leftdead = [pygame.transform.flip(rightdead[0], True, 0)]
-        leftattack = [pygame.transform.flip(rightattack[0], True, 0)]
-        leftgetattack = [pygame.transform.flip(rightgetattack[0], True, 0)]
+        static = [pygame.image.load('char_sprite/char_static.png')]
+        dead = [pygame.image.load('char_sprite/char_dead.png')]
+        walk = [pygame.image.load('char_sprite/char_walk_' + str(i) + '.png') for i in range(1, 4)]
+        attack = [pygame.image.load('char_sprite/char_attack.png')]
+        getattack = [pygame.image.load('char_sprite/char_get_attack.png')]
 
-        self.rightlist = [rightstatic, rightwalk, rightattack, rightgetattack ,rightdead]
-        self.leftlist = [leftstatic, leftwalk, leftattack, leftgetattack ,leftdead]
-        self.curlist = self.rightlist
-        self.cursprite = self.curlist[self.cur][self.index]
+        self.spritelist = [static, walk, attack, getattack ,dead]
+        self.cursprite = self.spritelist[self.cur][self.index]
         self.hitbox = self.cursprite.get_rect(bottomleft=(self.x_pos, self.y_pos))
+        
+        self.animation_time = round(100 / len(self.spritelist[self.cur] * 100), 2)
         
     def InitCondition(self):
         '''
@@ -635,7 +631,7 @@ class Player(Life):
         super().attack()
         if (self.itemType == ICE):
             self.ammunition -= 1
-        if (self.isDead is False):   #? 왜 isAttack is True가 조건문일때는 버그가? -> 키입력은 내가 설정한 bool 변수와는 하등 관계가 없나?
+        if (self.isDead is False and self.isGetattack is False):   #? 왜 isAttack is True가 조건문일때는 버그가? -> 키입력은 내가 설정한 bool 변수와는 하등 관계가 없나?
             if (self.direction == LEFT):
                 self.projectilelist.append(Projectile(self.projectileimage, self.hitbox.left, self.hitbox.y, self.ATK, LEFT))
             else:
@@ -742,25 +738,17 @@ class Enemy(Life):
         self.isDrop = False # 아이템 드랍 관련 불값
         self.attackRange = 70 # 공격 범위
         
-        rightstatic = [pygame.image.load('enemy_sprite/enemy_static.png')]
-        rightdead = [pygame.image.load('enemy_sprite/enemy_dead.png')]
-        rightwalk = [pygame.image.load('enemy_sprite/enemy_walk_' + str(i) + '.png') for i in range(1, 3)]
-        rightattack = [pygame.image.load('enemy_sprite/enemy_attack_' + str(i) + '.png') for i in range(1, 3)]
-        rightgetattack = [pygame.image.load('enemy_sprite/enemy_get_attack.png')]
-        leftwalk = [pygame.transform.flip(rightwalks, True, 0) for rightwalks in rightwalk]
-        leftstatic = [pygame.transform.flip(rightstatic[0], True, 0)]
-        leftdead = [pygame.transform.flip(rightdead[0], True, 0)]
-        leftattack = [pygame.transform.flip(rightattacks, True, 0) for rightattacks in rightattack]
-        leftgetattack = [pygame.transform.flip(rightgetattack[0], True, 0)]
+        static = [pygame.image.load('enemy_sprite/enemy_static.png')]
+        dead = [pygame.image.load('enemy_sprite/enemy_dead.png')]
+        walk = [pygame.image.load('enemy_sprite/enemy_walk_' + str(i) + '.png') for i in range(1, 3)]
+        attack = [pygame.image.load('enemy_sprite/enemy_attack_' + str(i) + '.png') for i in range(1, 3)]
+        getattack = [pygame.image.load('enemy_sprite/enemy_get_attack.png')]
 
-        self.rightlist = [rightstatic, rightwalk, rightattack, rightgetattack ,rightdead]
-        self.leftlist = [leftstatic, leftwalk, leftattack, leftgetattack ,leftdead]
-        self.curlist = self.leftlist
-        self.cursprite = self.curlist[self.cur][self.index]
+        self.spritelist = [static, walk, attack, getattack, dead]
+        self.cursprite = self.spritelist[self.cur][self.index]
         self.hitbox = self.cursprite.get_rect(bottomleft=(self.x_pos, self.y_pos))
         
-        self.animation_time = round(100 / len(self.curlist[self.cur] * 100), 2) # 스프라이트 업데이트 총 주기
-        self.current_time = 0 # 경과 시간
+        self.animation_time = round(100 / len(self.spritelist[self.cur] * 100), 2)
         
     def GetPos(self, pos):
         '''
@@ -808,9 +796,11 @@ class Enemy(Life):
         '''
         distance = self.hitbox.centerx - (player.GetPos(X) + player.GetSize(WIDTH) / 2) #플레이어와 적과의 거리를 계산함
         if (distance > 0):
-            self.leftwalk()
+            self.left()
+            self.walk()
         else:
-            self.rightwalk()
+            self.right()
+            self.walk()
 
         if (abs(distance) <= self.attackRange):
             if (player.GetCondition(HITBOX) is True):
@@ -842,39 +832,7 @@ class Enemy(Life):
         적의 스프라이트를 업데이트 시켜주는 함수
         스프라이트 업데이트 지연까지 추가함
         '''
-        if (self.direction == LEFT):
-            self.curlist = self.leftlist
-        elif (self.direction == RIGHT):
-            self.curlist = self.rightlist
-            
-        self.current_time += dt * 5
-        
-        if (self.Condition == STATIC):
-            self.cur = 0
-            self.updateCycle()
-        if (self.Condition == WALK):
-            self.cur = 1
-            self.updateCycle()
-        if (self.Condition == ATTACK):
-            self.cur = 2
-            self.updateCycle()
-        if (self.Condition == GETATTACK):
-            self.cur = 3
-            self.updateCycle()
-        if (self.HP <= 0):
-            self.cur = 4
-            self.dead()
-            self.isChangeCondition = False
-        
-        if (self.current_time >= self.animation_time or self.isChangeCondition is True):
-            self.current_time = 0
-            
-            self.index += 1
-            if (self.index >= len(self.curlist[self.cur]) or self.isChangeCondition is True):
-                self.index = 0
-        
-        self.cursprite = self.curlist[self.cur][self.index]
-            
+        super().updatesprite(dt)
         if (self.direction == LEFT):
             self.hitbox = self.cursprite.get_rect(bottomright=(self.x_pos + self.attackRange, self.y_pos)) #방향전환시 좌표오류를 잡아줌
         else:
@@ -895,21 +853,14 @@ class Boss(Enemy):
         super().__init__(x_pos, y_pos)
         self.attackRange = 70
         
-        rightstatic = [pygame.image.load('enemy_sprite/enemy_static.png')]
-        rightdead = [pygame.image.load('enemy_sprite/enemy_dead.png')]
-        rightwalk = [pygame.image.load('enemy_sprite/enemy_walk_' + str(i) + '.png') for i in range(1, 3)]
-        rightattack = [pygame.image.load('enemy_sprite/enemy_attack_' + str(i) + '.png') for i in range(1, 3)]
-        rightgetattack = [pygame.image.load('enemy_sprite/enemy_get_attack.png')]
-        leftwalk = [pygame.transform.flip(rightwalks, True, 0) for rightwalks in rightwalk]
-        leftstatic = [pygame.transform.flip(rightstatic[0], True, 0)]
-        leftdead = [pygame.transform.flip(rightdead[0], True, 0)]
-        leftattack = [pygame.transform.flip(rightattacks, True, 0) for rightattacks in rightattack]
-        leftgetattack = [pygame.transform.flip(rightgetattack[0], True, 0)]
+        static = [pygame.image.load('enemy_sprite/enemy_static.png')]
+        dead = [pygame.image.load('enemy_sprite/enemy_dead.png')]
+        walk = [pygame.image.load('enemy_sprite/enemy_walk_' + str(i) + '.png') for i in range(1, 3)]
+        attack = [pygame.image.load('enemy_sprite/enemy_attack_' + str(i) + '.png') for i in range(1, 3)]
+        getattack = [pygame.image.load('enemy_sprite/enemy_get_attack.png')]
 
-        self.rightlist = [rightstatic, rightwalk, rightattack, rightgetattack ,rightdead]
-        self.leftlist = [leftstatic, leftwalk, leftattack, leftgetattack ,leftdead]
-        self.curlist = self.leftlist
-        self.cursprite = self.curlist[self.cur][self.index]
+        self.spritelist = [static, walk, attack, getattack, dead]
+        self.cursprite = self.spritelist[self.cur][self.index]
         self.hitbox = self.cursprite.get_rect(bottomleft=(self.x_pos, self.y_pos))
             
     def dropItem(self):
@@ -978,7 +929,7 @@ def rungame():
         Enemy.SetStat(2500, 40, 10, 2)
 
     while True:
-        dt = Clock.tick(60) / 1000
+        dt = Clock.tick(60) / 1000 # 스프라이트 업데이트 주기 함수
         
         for event in pygame.event.get():
             if (event.type == pygame.QUIT):
@@ -987,9 +938,11 @@ def rungame():
 
             if (event.type == pygame.KEYDOWN):
                 if (event.key == pygame.K_LEFT):
-                    player.leftwalk()
+                    player.left()
+                    player.walk()
                 elif (event.key == pygame.K_RIGHT):
-                    player.rightwalk()
+                    player.right()
+                    player.walk()
                 elif (event.key == pygame.K_UP):
                     player.jump()
                 elif (event.key == pygame.K_x):
@@ -1008,7 +961,7 @@ def rungame():
                 
         Screen.blit(mapscale, (0, 0))
         player.draw()
-        player.update()
+        player.update(dt * 40)
         if (len(player.GetProjectiles()) != 0):
             for projectile in player.GetProjectiles():
                 projectile.move()
@@ -1022,13 +975,13 @@ def rungame():
         for enemy in Enemylist:
             if (len(Enemylist) != 0):
                 enemy.draw()
-                enemy.update(dt, player)
+                enemy.update(dt * 7, player)
                 
         for item in Itemlist:
             if (len(Itemlist) != 0):
                 item.draw()
             
-        write(SmallFont, str(player.ATK) + '   ' + str(Enemylist[0].index) + '   ' + str(len(Itemlist)), BLACK, 400, 20)
+        write(SmallFont, str(player.direction) + '   ' + str(Enemylist[0].index) + '   ' + str(len(Itemlist)), BLACK, 400, 20)
         pygame.display.update()
         Clock.tick(FPS)
     
@@ -1040,7 +993,7 @@ def main():
     BigFont = pygame.font.SysFont('굴림', 70)
     SmallFont = pygame.font.SysFont('굴림', 40)
     
-    pygame.display.set_caption("RPG")
+    pygame.display.set_caption("Adventure")
     
     rungame()
     
