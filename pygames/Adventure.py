@@ -97,6 +97,23 @@ FPS = 60
 mapimage = pygame.image.load('display.png')
 mapscale = pygame.transform.scale(mapimage, (800, 600))
 
+class GameStage(object):
+    '''
+    해당 클래스는 게임 스테이지를 구현시켜주는 클래스로, 여기에서 스테이지 진행, 게임오버 화면, 클리어 화면, 오프닝, 카메라 뷰 등을 모두 다룸
+    차후 나중에 구현할 예정
+    '''
+    def __init__(self, stage):
+        self.stage = stage
+    
+    def OpeningScreen(self):
+        pass
+    
+    def ClearScreen(self):
+        pass
+    
+    def GaemOverScreen(self):
+        pass
+
 class Projectile(object):
     '''
     해당 클래스는 투사체의 기본적인 틀을 정해놓았다. 기본적으로는 버블임
@@ -176,19 +193,31 @@ class Projectile(object):
 
 class Item(object):
     def __init__(self, x_pos, y_pos, image):
+        '''
+        아이템의 전체적인 정보를 저장하는 생성자
+        '''
         self.x_pos = x_pos
         self.y_pos = y_pos
         self.image = image # 이미지 파일 정보...(일단 임시임)
-        self.sprite = pygame.image.load(image)
-        self.hitbox = self.sprite.get_rect(bottomleft=(self.x_pos, self.y_pos))
+        self.icon = pygame.image.load(image)
+        self.hitbox = self.icon.get_rect(bottomleft=(self.x_pos, self.y_pos))
         
     def GetImage(self):
+        '''
+        아이템 아이콘 이미지를 반환하는 함수. 캐릭터의 아이템 획득 함수에 쓰임
+        '''
         return self.image
     
     def draw(self):
-        Screen.blit(self.sprite, (self.hitbox.x, self.hitbox.y))
+        '''
+        아이템을 그리는 함수
+        '''
+        Screen.blit(self.icon, (self.hitbox.x, self.hitbox.y))
 
     def checkcollision(self, Player):
+        '''
+        충돌판정 함수
+        '''
         if (pygame.Rect.colliderect(self.hitbox, Player.hitbox)):
             return True
         else:
@@ -211,6 +240,7 @@ class Life(object):
             self.y_pos = MAP_GROUND
         else:
             self.y_pos = y_pos
+        self.MAXHP = 0
         self.HP = 0
         self.ATK = 0
         self.DEF = 0
@@ -234,7 +264,7 @@ class Life(object):
         self.ChangeDelay = 0.1 # 컨디션 전환 딜레이
         self.delayStart = 0 # 딜레이 시작 시간
         self.delayElapsed = 0 # 딜레이 경과 시간
-        self.atkcool = 2 # 공격 쿨타임
+        self.atkcool = 0 # 공격 쿨타임
         self.coolStart = 0 # 쿨타임 시작 시간
         self.coolElapsed = 0 # 쿨타임 경과 시간
         
@@ -250,10 +280,11 @@ class Life(object):
         '''
         pass
     
-    def SetStat(self, HP, ATK, DEF, SPEED):
+    def SetStat(self, MAXHP, HP, ATK, DEF, SPEED):
         '''
         오브젝트의 스텟을 설정하는 메서드
         '''
+        self.MAXHP = MAXHP
         self.HP = HP
         self.ATK = ATK
         self.DEF = DEF
@@ -348,14 +379,20 @@ class Life(object):
         self.isDead = False
         
     def left(self):
+        '''
+        왼쪽
+        '''
         self.direction = LEFT
     
     def right(self):
+        '''
+        오른쪽
+        '''
         self.direction = RIGHT
         
     def walk(self):
         '''
-        왼쪽으로 걷는 상태를 설정하는 메서드
+        걷는 상태를 설정하는 메서드
         '''
         if (self.Condition != WALK):
             self.isChangeCondition = True
@@ -383,16 +420,18 @@ class Life(object):
     def attack(self):
         '''
         오브젝트의 공격 상태를 설정하는 메서드
+        공격 함수 호출 시 쿨타임이 돌아가도록 설정함
         '''
         if (self.Condition != ATTACK):
             self.isChangeCondition = True
         else:
             self.isChangeCondition = False
         
-        if (self.Condition != GETATTACK):
+        if (self.Condition != GETATTACK and self.coolElapsed == 0):
             self.isWalk = False
             self.isAttack = True
             self.delayStart = pygame.time.get_ticks()
+            self.coolStart = pygame.time.get_ticks()
             
     def getattack(self, Another):
         '''
@@ -456,6 +495,16 @@ class Life(object):
         self.drawpos()
         self.drawStat()
         
+    def updateCooldown(self):
+        '''
+        공격 쿨타임을 업데이트 시켜주는 함수
+        updateCondition내부에서만 쓰이는 함수임
+        '''
+        self.coolElapsed = (pygame.time.get_ticks() - self.coolStart) / 1000
+        if (self.coolElapsed >= self.atkcool):
+            self.coolElapsed = 0
+            self.coolStart = 0
+        
     def updateCycle(self):
         '''
         스프라이트 업데이트 주기를 계산시켜주는 메서드
@@ -477,6 +526,7 @@ class Life(object):
             self.Condition = WALK
         elif (self.isAttack is True):
             self.Condition = ATTACK
+            self.updateCooldown()
         elif (self.isGetattack is True):
             self.Condition = GETATTACK
         elif (self.isDead is True):
@@ -484,6 +534,9 @@ class Life(object):
         elif (self.isWalk is False and self.isAttack is False and
               self.isGetattack is False  and self.isDead is False):
             self.Condition = STATIC
+            
+        if (self.Condition != ATTACK):
+            self.updateCooldown()
         
     def updatepos(self):
         '''
@@ -553,17 +606,22 @@ class Life(object):
         
 class Player(Life):
     def __init__(self, x_pos, y_pos=None):
+        '''
+        플레이어의 기본적인 정보를 설정하는 생성자
+        여기에서 스프라이트 및 쿨타임 등을 관리함
+        '''
         super().__init__(x_pos, y_pos)
         
         self.direction = RIGHT
         self.getitem = False
         self.itemType = None
-        self.projectileimage = 'char_sprite/bubble.png'
+        self.projectileimage = BASIC
         self.projectilelist = []
         self.ammunition = 30 # 강화 공격 제한 개수
         self.duration = 20 # 아이템 지속 시간
         self.itemStart = 0 # 아이템 시작 시간
         self.itemElapsed = 0 # 아이템 획득 후 경과시간
+        self.atkcool = 1
         
         static = [pygame.image.load('char_sprite/char_static.png')]
         dead = [pygame.image.load('char_sprite/char_dead.png')]
@@ -582,6 +640,7 @@ class Player(Life):
         플레이어의 체력을 제외한 모든 스텟 및 시간을 초기화시키는 메서드
         주로 아이템을 중복으로 먹었을 시에 활성화 됨
         '''
+        self.MAXHP = 500
         self.ATK = 50
         self.DEF = 0
         self.SPEED = 10
@@ -631,7 +690,7 @@ class Player(Life):
         super().attack()
         if (self.itemType == ICE):
             self.ammunition -= 1
-        if (self.isDead is False and self.isGetattack is False):   #? 왜 isAttack is True가 조건문일때는 버그가? -> 키입력은 내가 설정한 bool 변수와는 하등 관계가 없나?
+        if (self.isDead is False and self.isGetattack is False and self.coolElapsed == 0):
             if (self.direction == LEFT):
                 self.projectilelist.append(Projectile(self.projectileimage, self.hitbox.left, self.hitbox.y, self.ATK, LEFT))
             else:
@@ -666,28 +725,32 @@ class Player(Life):
                     self.InitCondition()
                     self.ChangeStat(0, 0, 0, 5)
                     self.itemStart = pygame.time.get_ticks()
+                    
+        return True
 
     def drawStat(self):
         '''
         플레이어의 스텟을 그려주는 메서드
         '''
-        Length = self.HP / 5
+        Length = 200
+        convert = self.MAXHP / 200
+        pygame.draw.rect(Screen, VIRGINRED, (10, 10, Length, 30), 2)
         if (self.HP >= 0):
-            pygame.draw.rect(Screen, RED, (10, 10, Length, 30))
+            pygame.draw.rect(Screen, RED, (10, 10, self.HP / convert , 30))
         
         ICEICON = pygame.image.load('char_sprite/ice.png')
         ARMORICON = pygame.image.load('items/shield.png')
         HASTEICON = pygame.image.load('items/haste.png')
             
         if (self.itemType == ICE):
-            Screen.blit(ICEICON, (200, 10))
-            write(SmallFont, ' X ' + str(self.ammunition), BLACK, 270, 20)
+            Screen.blit(ICEICON, (Length + 20, 10))
+            write(SmallFont, ' X ' + str(self.ammunition), BLACK, Length + 80, 20)
         elif (self.itemType == ARMOR):
-            Screen.blit(ARMORICON, (200, 10))
-            write(SmallFont, ' : ' + str(self.duration - self.itemElapsed) + ' sec ', BLACK, 290, 20)
+            Screen.blit(ARMORICON, (Length + 20, 10))
+            write(SmallFont, ' : ' + str(self.duration - self.itemElapsed) + ' sec ', BLACK, Length + 100, 20)
         elif (self.itemType == HASTE):
-            Screen.blit(HASTEICON, (200, 10))
-            write(SmallFont, ' : ' + str(self.duration - self.itemElapsed) + ' sec ', BLACK, 290, 20)
+            Screen.blit(HASTEICON, (Length + 20, 10))
+            write(SmallFont, ' : ' + str(self.duration - self.itemElapsed) + ' sec ', BLACK, Length + 100, 20)
             
     def updateCondition(self):
         '''
@@ -732,11 +795,15 @@ class Player(Life):
 
 class Enemy(Life):
     def __init__(self, x_pos, y_pos=None):
+        '''
+        적의 기본적인 정보를 저장하는 생성자
+        '''
         super().__init__(x_pos, y_pos)
         
         self.direction = LEFT
         self.isDrop = False # 아이템 드랍 관련 불값
         self.attackRange = 70 # 공격 범위
+        self.atkcool = 1
         
         static = [pygame.image.load('enemy_sprite/enemy_static.png')]
         dead = [pygame.image.load('enemy_sprite/enemy_dead.png')]
@@ -813,19 +880,22 @@ class Enemy(Life):
                         self.index = 0
                         self.getattack(player)
                         player.GetProjectiles().remove(projectile)
+                        
+        if (player.GetCondition(DEAD) is True):
+            self.static()
 
         if (self.isDead is True and self.isDrop is False):
             self.dropItem()
             self.isDrop = True
 
     def drawStat(self):
-        Length = self.HP / 20
-        DisplayLength = 2500 / 20
-        pygame.draw.rect(Screen, VIRGINRED, (self.hitbox.centerx - DisplayLength / 2,
-                                             self.hitbox.bottom + 18, DisplayLength, 12), 3)
+        Length = 125
+        convert = self.MAXHP / Length
+        pygame.draw.rect(Screen, VIRGINRED, (self.hitbox.centerx - Length / 2,
+                                             self.hitbox.bottom + 18, Length, 12), 3)
         if (self.HP >= 0):
-            pygame.draw.rect(Screen, RED, (self.hitbox.centerx - DisplayLength / 2,
-                                           self.hitbox.bottom + 19, Length, 9))
+            pygame.draw.rect(Screen, RED, (self.hitbox.centerx - Length / 2,
+                                           self.hitbox.bottom + 19, self.HP / convert , 9))
             
     def updatesprite(self, dt):# 추후 아이템 획득시에도 스프라이트 관련 업데이트를 추가할 것
         '''
@@ -853,14 +923,21 @@ class Boss(Enemy):
         super().__init__(x_pos, y_pos)
         self.attackRange = 70
         
-        static = [pygame.image.load('enemy_sprite/enemy_static.png')]
-        dead = [pygame.image.load('enemy_sprite/enemy_dead.png')]
-        walk = [pygame.image.load('enemy_sprite/enemy_walk_' + str(i) + '.png') for i in range(1, 3)]
-        attack = [pygame.image.load('enemy_sprite/enemy_attack_' + str(i) + '.png') for i in range(1, 3)]
-        getattack = [pygame.image.load('enemy_sprite/enemy_get_attack.png')]
+        rightstatic = [pygame.image.load('enemy_sprite/enemy_static.png')]
+        rightdead = [pygame.image.load('enemy_sprite/enemy_dead.png')]
+        rightwalk = [pygame.image.load('enemy_sprite/enemy_walk_' + str(i) + '.png') for i in range(1, 3)]
+        rightattack = [pygame.image.load('enemy_sprite/enemy_attack_' + str(i) + '.png') for i in range(1, 3)]
+        rightgetattack = [pygame.image.load('enemy_sprite/enemy_get_attack.png')]
+        leftwalk = [pygame.transform.flip(rightwalks, True, 0) for rightwalks in rightwalk]
+        leftstatic = [pygame.transform.flip(rightstatic[0], True, 0)]
+        leftdead = [pygame.transform.flip(rightdead[0], True, 0)]
+        leftattack = [pygame.transform.flip(rightattacks, True, 0) for rightattacks in rightattack]
+        leftgetattack = [pygame.transform.flip(rightgetattack[0], True, 0)]
 
-        self.spritelist = [static, walk, attack, getattack, dead]
-        self.cursprite = self.spritelist[self.cur][self.index]
+        self.rightlist = [rightstatic, rightwalk, rightattack, rightgetattack ,rightdead]
+        self.leftlist = [leftstatic, leftwalk, leftattack, leftgetattack ,leftdead]
+        self.curlist = self.leftlist
+        self.cursprite = self.curlist[self.cur][self.index]
         self.hitbox = self.cursprite.get_rect(bottomleft=(self.x_pos, self.y_pos))
             
     def dropItem(self):
@@ -882,7 +959,7 @@ class Boss(Enemy):
 def StartScreen():
     while True:
         Screen.fill(WHITE)
-        write(BigFont, 'Tetris', BLACK, x_size / 2, y_size / 2)
+        write(BigFont, 'Adventure', BLACK, x_size / 2, y_size / 2)
         write(BigFont, 'Press S!', BLACK, x_size / 2, 450)
         pygame.display.update()
         
@@ -919,14 +996,12 @@ def rungame():
     global Enemy, Item
     player = Player(300)
     enemy = Enemy(600)
-    player.SetStat(500, 50, 0, 7)
+    player.SetStat(500, 500, 50, 0, 7)
     Enemylist.append(enemy)
-    Itemlist.append(Item(100, MAP_GROUND, ICE))
-    Itemlist.append(Item(150, MAP_GROUND, ARMOR))
     for Enemy in Enemylist:
         Deadboollist.append(Enemy.GetCondition(DEAD))
     for Enemy in Enemylist:
-        Enemy.SetStat(2500, 40, 10, 2)
+        Enemy.SetStat(2500, 2500, 40, 10, 2)
 
     while True:
         dt = Clock.tick(60) / 1000 # 스프라이트 업데이트 주기 함수
@@ -961,7 +1036,7 @@ def rungame():
                 
         Screen.blit(mapscale, (0, 0))
         player.draw()
-        player.update(dt * 40)
+        player.update(1)
         if (len(player.GetProjectiles()) != 0):
             for projectile in player.GetProjectiles():
                 projectile.move()
@@ -975,13 +1050,13 @@ def rungame():
         for enemy in Enemylist:
             if (len(Enemylist) != 0):
                 enemy.draw()
-                enemy.update(dt * 7, player)
+                enemy.update(dt * 20, player)
                 
         for item in Itemlist:
             if (len(Itemlist) != 0):
                 item.draw()
             
-        write(SmallFont, str(player.direction) + '   ' + str(Enemylist[0].index) + '   ' + str(len(Itemlist)), BLACK, 400, 20)
+        write(SmallFont, str(player.coolElapsed) + '   ' + str(Enemylist[0].coolElapsed) + '   ' + str(len(Itemlist)), BLACK, 400, 20)
         pygame.display.update()
         Clock.tick(FPS)
     
