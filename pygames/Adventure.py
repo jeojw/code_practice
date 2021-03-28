@@ -4,10 +4,6 @@ import random
 
 pygame.init() # pygame 초기화
 
-temp_h = -150
-temp_t = 60
-JUMP_SPEED = 60 * temp_h / temp_t
-GRAVITY = -80 * temp_h / (temp_t ** 2)
 MAP_GROUND = 465
 MAP_HEIGHT = 0
 MAP_LIMIT_LEFT = 0
@@ -33,6 +29,7 @@ ATTACK = 'attack'
 GETATTACK = 'getattack'
 DEAD = 'dead'
 HITBOX = 'hitbox'
+ATKHITBOX = 'atkhitbox'
 ONGROUND = 'onground'
 
 '''
@@ -257,16 +254,21 @@ class Life(object):
         self.isOnGround = True
         self.isGetattack = False
         self.isHitbox = True # 사망 시에 히트박스 없는 것으로 처리
+        self.attackHitbox = False # 공격 시의 히트박스(근접 타입의 적 및 캐릭터만 쓰이는 변수)
         self.isChangeStat = False # 스텟 변경이 되는지에 대한 불값
         self.isChangeCondition = False
         self.Condition = STATIC # 오브젝트의 컨디션
         
+        self.gravity = 0 # 중력 계수
+        self.airSpace = -12 # 점프 계수
         self.ChangeDelay = 0.1 # 컨디션 전환 딜레이
         self.delayStart = 0 # 딜레이 시작 시간
         self.delayElapsed = 0 # 딜레이 경과 시간
         self.atkcool = 0 # 공격 쿨타임
         self.coolStart = 0 # 쿨타임 시작 시간
         self.coolElapsed = 0 # 쿨타임 경과 시간
+        self.jumpStart = 0
+        self.jumpElapsed = 0
         
         self.index = 0 # 각 스프라이트 리스트의 인덱스
         self.cur = 0 #각 스프라이트 덩어리의 인덱스
@@ -337,6 +339,8 @@ class Life(object):
                 return self.isDead
             elif (condition == 'hitbox'):
                 return self.isHitbox
+            elif (condition == 'atkhitbox'):
+                return self.attackHitbox
             else:
                 raise ValueError
         except ValueError:
@@ -380,13 +384,13 @@ class Life(object):
         
     def left(self):
         '''
-        왼쪽
+        왼쪽 방향
         '''
         self.direction = LEFT
     
     def right(self):
         '''
-        오른쪽
+        오른쪽 방향
         '''
         self.direction = RIGHT
         
@@ -415,7 +419,7 @@ class Life(object):
             if (self.hitbox.bottom < MAP_GROUND):
                 self.y_pos += 0
             else:
-                self.y_pos += JUMP_SPEED
+                self.y_pos -= 1
                 
     def attack(self):
         '''
@@ -494,12 +498,13 @@ class Life(object):
         '''
         self.drawpos()
         self.drawStat()
-        
+
     def updateCooldown(self):
         '''
         공격 쿨타임을 업데이트 시켜주는 함수
         updateCondition내부에서만 쓰이는 함수임
         '''
+        self.attackHitbox = False
         self.coolElapsed = (pygame.time.get_ticks() - self.coolStart) / 1000
         if (self.coolElapsed >= self.atkcool):
             self.coolElapsed = 0
@@ -526,7 +531,7 @@ class Life(object):
             self.Condition = WALK
         elif (self.isAttack is True):
             self.Condition = ATTACK
-            self.updateCooldown()
+            self.attackHitbox = True
         elif (self.isGetattack is True):
             self.Condition = GETATTACK
         elif (self.isDead is True):
@@ -534,6 +539,13 @@ class Life(object):
         elif (self.isWalk is False and self.isAttack is False and
               self.isGetattack is False  and self.isDead is False):
             self.Condition = STATIC
+        
+        if (self.isOnGround is False):
+        #self.jumpElapsed = (pygame.time.get_ticks() - self.jumpStart) / 1000 # 왜 elif로 하면 시간이 지나가지 않을까...?
+            self.y_pos += self.airSpace
+            if (self.y_pos <= MAP_GROUND - 80):
+                self.airspace = 0
+                self.gravity += 1
             
         if (self.Condition != ATTACK):
             self.updateCooldown()
@@ -546,10 +558,11 @@ class Life(object):
         self.hitbox.bottom = self.y_pos
 
         if (self.isOnGround is False):
-            self.y_pos += GRAVITY
+            self.y_pos += self.gravity
         if (self.y_pos >= MAP_GROUND):
             self.y_pos = MAP_GROUND
             self.isOnGround = True
+            self.gravity = 0
         if (self.hitbox.left <= MAP_LIMIT_LEFT):
             self.x_pos = MAP_LIMIT_LEFT
         if (self.hitbox.right >= MAP_LIMIT_RIGHT):
@@ -621,7 +634,7 @@ class Player(Life):
         self.duration = 20 # 아이템 지속 시간
         self.itemStart = 0 # 아이템 시작 시간
         self.itemElapsed = 0 # 아이템 획득 후 경과시간
-        self.atkcool = 1
+        self.atkcool = 0.75
         
         static = [pygame.image.load('char_sprite/char_static.png')]
         dead = [pygame.image.load('char_sprite/char_dead.png')]
@@ -725,18 +738,16 @@ class Player(Life):
                     self.InitCondition()
                     self.ChangeStat(0, 0, 0, 5)
                     self.itemStart = pygame.time.get_ticks()
-                    
-        return True
 
     def drawStat(self):
         '''
         플레이어의 스텟을 그려주는 메서드
         '''
         Length = 200
-        convert = self.MAXHP / 200
+        convertConficient = self.MAXHP / 200
         pygame.draw.rect(Screen, VIRGINRED, (10, 10, Length, 30), 2)
         if (self.HP >= 0):
-            pygame.draw.rect(Screen, RED, (10, 10, self.HP / convert , 30))
+            pygame.draw.rect(Screen, RED, (10, 10, self.HP / convertConficient , 30))
         
         ICEICON = pygame.image.load('char_sprite/ice.png')
         ARMORICON = pygame.image.load('items/shield.png')
@@ -762,7 +773,7 @@ class Player(Life):
         super().updateCondition()
         for enemy in Enemylist:
             if (self.isHitbox is True):
-                if (self.checkcollision(enemy) is True and enemy.GetCondition(HITBOX) is True):
+                if (self.checkcollision(enemy) is True and enemy.GetCondition(ATKHITBOX) is True):
                     self.getattack(enemy)
                     
         if (self.getitem is True and self.isChangeStat is True):
@@ -802,7 +813,7 @@ class Enemy(Life):
         
         self.direction = LEFT
         self.isDrop = False # 아이템 드랍 관련 불값
-        self.attackRange = 70 # 공격 범위
+        self.attackRange = 75 # 공격 범위
         self.atkcool = 1
         
         static = [pygame.image.load('enemy_sprite/enemy_static.png')]
@@ -872,6 +883,8 @@ class Enemy(Life):
         if (abs(distance) <= self.attackRange):
             if (player.GetCondition(HITBOX) is True):
                 self.attack()
+                if (self.coolElapsed != 0):
+                    self.static()
 
         for projectile in player.GetProjectiles():
             if (len(player.GetProjectiles()) != 0):
@@ -890,12 +903,12 @@ class Enemy(Life):
 
     def drawStat(self):
         Length = 125
-        convert = self.MAXHP / Length
+        convertConficient = self.MAXHP / Length
         pygame.draw.rect(Screen, VIRGINRED, (self.hitbox.centerx - Length / 2,
                                              self.hitbox.bottom + 18, Length, 12), 3)
         if (self.HP >= 0):
             pygame.draw.rect(Screen, RED, (self.hitbox.centerx - Length / 2,
-                                           self.hitbox.bottom + 19, self.HP / convert , 9))
+                                           self.hitbox.bottom + 19, self.HP / convertConficient , 9))
             
     def updatesprite(self, dt):# 추후 아이템 획득시에도 스프라이트 관련 업데이트를 추가할 것
         '''
@@ -1001,7 +1014,7 @@ def rungame():
     for Enemy in Enemylist:
         Deadboollist.append(Enemy.GetCondition(DEAD))
     for Enemy in Enemylist:
-        Enemy.SetStat(2500, 2500, 40, 10, 2)
+        Enemy.SetStat(2500, 2500, 40, 10, 7)
 
     while True:
         dt = Clock.tick(60) / 1000 # 스프라이트 업데이트 주기 함수
@@ -1050,13 +1063,13 @@ def rungame():
         for enemy in Enemylist:
             if (len(Enemylist) != 0):
                 enemy.draw()
-                enemy.update(dt * 20, player)
+                enemy.update(dt * 15, player)
                 
         for item in Itemlist:
             if (len(Itemlist) != 0):
                 item.draw()
             
-        write(SmallFont, str(player.coolElapsed) + '   ' + str(Enemylist[0].coolElapsed) + '   ' + str(len(Itemlist)), BLACK, 400, 20)
+        write(SmallFont, str(Enemylist[0].coolElapsed) + '   ' + str(Enemylist[0].isChangeStat) + '   ' + str(Enemylist[0].isAttack), BLACK, 400, 20)
         pygame.display.update()
         Clock.tick(FPS)
     
