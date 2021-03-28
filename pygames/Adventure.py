@@ -540,12 +540,7 @@ class Life(object):
               self.isGetattack is False  and self.isDead is False):
             self.Condition = STATIC
         
-        if (self.isOnGround is False):
         #self.jumpElapsed = (pygame.time.get_ticks() - self.jumpStart) / 1000 # 왜 elif로 하면 시간이 지나가지 않을까...?
-            self.y_pos += self.airSpace
-            if (self.y_pos <= MAP_GROUND - 80):
-                self.airspace = 0
-                self.gravity += 1
             
         if (self.Condition != ATTACK):
             self.updateCooldown()
@@ -558,6 +553,10 @@ class Life(object):
         self.hitbox.bottom = self.y_pos
 
         if (self.isOnGround is False):
+            self.y_pos += self.airSpace
+            if (self.y_pos <= MAP_GROUND - 80):
+                self.airspace = 0
+                self.gravity += 1
             self.y_pos += self.gravity
         if (self.y_pos >= MAP_GROUND):
             self.y_pos = MAP_GROUND
