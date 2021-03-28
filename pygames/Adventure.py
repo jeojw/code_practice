@@ -256,7 +256,8 @@ class Life(object):
         self.isHitbox = True # 사망 시에 히트박스 없는 것으로 처리
         self.attackHitbox = False # 공격 시의 히트박스(근접 타입의 적 및 캐릭터만 쓰이는 변수)
         self.isChangeStat = False # 스텟 변경이 되는지에 대한 불값
-        self.isChangeCondition = False
+        self.isChangeCondition = False # 컨디션이 뒤바뀌었는지 검사하는 불값->이 값이 참이 될시에 current_time과 index가 0으로 초기화가 됨(기존에는 전환시에도 index와 current_time이 그대로라 스프라이트 업데이트가 잘 안됨)
+        self.flipPosible = True # 방향전환이 가능한지 설정하는 불값. 죽었을 시에 비활성화됨
         self.Condition = STATIC # 오브젝트의 컨디션
         
         self.gravity = 0 # 중력 계수
@@ -267,8 +268,6 @@ class Life(object):
         self.atkcool = 0 # 공격 쿨타임
         self.coolStart = 0 # 쿨타임 시작 시간
         self.coolElapsed = 0 # 쿨타임 경과 시간
-        self.jumpStart = 0
-        self.jumpElapsed = 0
         
         self.index = 0 # 각 스프라이트 리스트의 인덱스
         self.cur = 0 #각 스프라이트 덩어리의 인덱스
@@ -408,6 +407,8 @@ class Life(object):
             self.isAttack = False
             self.isGetattack = False
             self.delayStart = pygame.time.get_ticks()
+        else:
+            self.isWalk = False
         
     def jump(self):
         '''
@@ -419,7 +420,7 @@ class Life(object):
             if (self.hitbox.bottom < MAP_GROUND):
                 self.y_pos += 0
             else:
-                self.y_pos -= 1
+                self.y_pos -= 0.1
                 
     def attack(self):
         '''
@@ -436,6 +437,8 @@ class Life(object):
             self.isAttack = True
             self.delayStart = pygame.time.get_ticks()
             self.coolStart = pygame.time.get_ticks()
+        else:
+            self.isAttack = False
             
     def getattack(self, Another):
         '''
@@ -474,12 +477,14 @@ class Life(object):
         self.isWalk = False
         self.isAttack = False
         self.isGetattack = False
+        self.flipPosible = False
     
     def drawpos(self):
         '''
         오브젝트의 위치에 따라 화면에 그려주는 메서드
+        flipPosible 이 거짓일 경우 방향전환이 안되도록 함
         '''
-        if (self.direction == LEFT):
+        if (self.direction == LEFT and self.flipPosible is True):
             Screen.blit(pygame.transform.flip(self.cursprite, True, False), (self.hitbox.x, self.hitbox.y))
         else:
             Screen.blit(self.cursprite, (self.hitbox.x, self.hitbox.y))
@@ -512,7 +517,7 @@ class Life(object):
         
     def updateCycle(self):
         '''
-        스프라이트 업데이트 주기를 계산시켜주는 메서드
+        컨디션 전환시 스프라이트 업데이트 주기를 계산시켜주는 메서드
         클래스 내부에서만 쓰이는 메서드
         '''
         self.delayElapsed = (pygame.time.get_ticks() - self.delayStart) / 1000
@@ -527,20 +532,18 @@ class Life(object):
         오브젝트의 컨디션을 업데이트 시켜주는 함수
         불값을 기반으로 업데이트 시켜줌
         '''
-        if (self.isWalk is True):
+        if (self.isWalk is True and self.isDead is False):
             self.Condition = WALK
-        elif (self.isAttack is True):
+        elif (self.isAttack is True and self.isDead is False):
             self.Condition = ATTACK
             self.attackHitbox = True
-        elif (self.isGetattack is True):
+        elif (self.isGetattack is True and self.isDead is False):
             self.Condition = GETATTACK
         elif (self.isDead is True):
             self.Condition = DEAD
         elif (self.isWalk is False and self.isAttack is False and
-              self.isGetattack is False  and self.isDead is False):
+              self.isGetattack is False and self.isDead is False):
             self.Condition = STATIC
-        
-        #self.jumpElapsed = (pygame.time.get_ticks() - self.jumpStart) / 1000 # 왜 elif로 하면 시간이 지나가지 않을까...?
             
         if (self.Condition != ATTACK):
             self.updateCooldown()
@@ -725,7 +728,7 @@ class Player(Life):
                 if (item.GetImage() == ICE):
                     self.itemType = ICE
                     self.InitCondition()
-                    self.ChangeStat(0, 10, 0, 0)
+                    self.ChangeStat(0, 100, 0, 0)
                     self.projectileimage = REINFORCE
                 elif (item.GetImage() == ARMOR):
                     self.itemType = ARMOR
@@ -779,7 +782,7 @@ class Player(Life):
             if (self.itemType == ICE):
                 if (self.ammunition == 0):
                     self.itemType = None
-                    self.ChangeStat(0, -10, 0, 0)
+                    self.ChangeStat(0, -100, 0, 0)
                     self.projectileimage = BASIC
                     self.isChangeStat = False
                     self.getitem = False
@@ -1008,12 +1011,12 @@ def rungame():
     global Enemy, Item
     player = Player(300)
     enemy = Enemy(600)
-    player.SetStat(500, 500, 50, 0, 7)
+    player.SetStat(500, 500, 200, 0, 7)
     Enemylist.append(enemy)
     for Enemy in Enemylist:
         Deadboollist.append(Enemy.GetCondition(DEAD))
     for Enemy in Enemylist:
-        Enemy.SetStat(2500, 2500, 40, 10, 7)
+        Enemy.SetStat(2500, 2500, 80, 10, 7)
 
     while True:
         dt = Clock.tick(60) / 1000 # 스프라이트 업데이트 주기 함수
@@ -1044,7 +1047,12 @@ def rungame():
                 if (event.key == pygame.K_LEFT or
                     event.key == pygame.K_RIGHT or
                     event.key == pygame.K_x):
-                    player.static()
+                    if (player.GetCondition(DEAD) is False):
+                        player.static()
+                    else:
+                        player.dead()
+
+                        
                 
         Screen.blit(mapscale, (0, 0))
         player.draw()
@@ -1068,7 +1076,7 @@ def rungame():
             if (len(Itemlist) != 0):
                 item.draw()
             
-        write(SmallFont, str(Enemylist[0].coolElapsed) + '   ' + str(Enemylist[0].isChangeStat) + '   ' + str(Enemylist[0].isAttack), BLACK, 400, 20)
+        write(SmallFont, str(player.Condition) + '   ' + str(player.isDead) + '   ' + str(player.y_pos), BLACK, 400, 20)
         pygame.display.update()
         Clock.tick(FPS)
     
