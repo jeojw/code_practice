@@ -46,6 +46,7 @@ HEIGHT = 'height'
 ICE = 'char_sprite/ice.png'
 ARMOR = 'items/shield.png'
 HASTE = 'items/haste.png'
+ATTACKSPEED = 'items/attackspeed.png'
 
 BASIC = 'char_sprite/bubble.png'
 REINFORCE = 'char_sprite/ice.png'
@@ -59,7 +60,7 @@ Deadboollist = [] # 적들이 생존해있는지 아닌지 체크해주는 리�
 Enemydic = {'Near': list(),
             'Distance': list(),
             'Boss': list()} #추후 쓰일 적 딕셔너리 타입. 딕셔너리 타입에 따라 스텟을 조정할 예정
-ItemTypes = [ICE, ARMOR, HASTE] # 아이템 타입, 주로 스프라이트 파일로 통해 아이템 획득을 구분할 예정
+ItemTypes = [ICE, ARMOR, HASTE, ATTACKSPEED] # 아이템 타입, 주로 스프라이트 파일로 통해 아이템 획득을 구분할 예정
 Itemlist = [] # 아이템을 담는 리스트
 
 '''
@@ -257,7 +258,6 @@ class Life(object):
         self.attackHitbox = False # 공격 시의 히트박스(근접 타입의 적 및 캐릭터만 쓰이는 변수)
         self.isChangeStat = False # 스텟 변경이 되는지에 대한 불값
         self.isChangeCondition = False # 컨디션이 뒤바뀌었는지 검사하는 불값->이 값이 참이 될시에 current_time과 index가 0으로 초기화가 됨(기존에는 전환시에도 index와 current_time이 그대로라 스프라이트 업데이트가 잘 안됨)
-        self.flipPosible = True # 방향전환이 가능한지 설정하는 불값. 죽었을 시에 비활성화됨
         self.Condition = STATIC # 오브젝트의 컨디션
         
         self.gravity = 0 # 중력 계수
@@ -291,7 +291,7 @@ class Life(object):
         self.DEF = DEF
         self.SPEED = SPEED
         
-    def ChangeStat(self, HP=0, ATK=0, DEF=0, SPEED=0):
+    def ChangeStat(self, HP=0, ATK=0, DEF=0, SPEED=0, ATTACKSPEED=1):
         '''
         오브젝트의 스텟의 변화를 주는 메서드
         주로 아이템이나 적의 공격을 받을 때 쓰인다
@@ -300,6 +300,7 @@ class Life(object):
         self.ATK += ATK
         self.DEF += DEF
         self.SPEED += SPEED
+        self.atkcool /= ATTACKSPEED
     
     def GetStat(self, stat):
         '''
@@ -402,13 +403,31 @@ class Life(object):
         else:
             self.isChangeCondition = False
         
-        if (self.Condition != DEAD and self.Condition != GETATTACK): # 만일 이 조건문이 없을 시 죽은 후에도 방향전환이 됨. 아래도 동일
+        if (self.Condition != GETATTACK): # 만일 이 조건문이 없을 시 죽은 후에도 방향전환이 됨. 아래도 동일
             self.isWalk = True
             self.isAttack = False
             self.isGetattack = False
             self.delayStart = pygame.time.get_ticks()
         else:
             self.isWalk = False
+            
+    def leftwalk(self):
+        '''
+        왼쪽방향으로 걷게 해주는 메서드
+        사망시 방향전환 및 걷기가 안되도록 설정
+        '''
+        if (self.Condition != DEAD):
+            self.left()
+            self.walk()
+            
+    def rightwalk(self):
+        '''
+        오른쪽방향으로 걷게 해주는 메서드
+        사망시 방향전환 및 걷기가 안되도록 설정
+        '''
+        if (self.Condition != DEAD):
+            self.right()
+            self.walk()
         
     def jump(self):
         '''
@@ -484,7 +503,7 @@ class Life(object):
         오브젝트의 위치에 따라 화면에 그려주는 메서드
         flipPosible 이 거짓일 경우 방향전환이 안되도록 함
         '''
-        if (self.direction == LEFT and self.flipPosible is True):
+        if (self.direction == LEFT):
             Screen.blit(pygame.transform.flip(self.cursprite, True, False), (self.hitbox.x, self.hitbox.y))
         else:
             Screen.blit(self.cursprite, (self.hitbox.x, self.hitbox.y))
@@ -650,7 +669,7 @@ class Player(Life):
         
         self.animation_time = round(100 / len(self.spritelist[self.cur] * 100), 2)
         
-    def InitCondition(self):
+    def ResetCondition(self):
         '''
         플레이어의 체력을 제외한 모든 스텟 및 시간을 초기화시키는 메서드
         주로 아이템을 중복으로 먹었을 시에 활성화 됨
@@ -664,6 +683,7 @@ class Player(Life):
         self.duration = 20
         self.itemStart = 0
         self.itemElapsed = 0
+        self.atkcool = 0.75
         
     def GetPos(self, pos):
         '''
@@ -727,19 +747,36 @@ class Player(Life):
                 self.isChangeStat = True
                 if (item.GetImage() == ICE):
                     self.itemType = ICE
-                    self.InitCondition()
-                    self.ChangeStat(0, 100, 0, 0)
+                    self.ResetCondition()
+                    self.ChangeStat(0, 100, 0, 0, 1)
                     self.projectileimage = REINFORCE
                 elif (item.GetImage() == ARMOR):
                     self.itemType = ARMOR
-                    self.InitCondition()
-                    self.ChangeStat(0, 0, 20, 0)
+                    self.ResetCondition()
+                    self.ChangeStat(0, 0, 20, 0, 1)
                     self.itemStart = pygame.time.get_ticks()
                 elif (item.GetImage() == HASTE):
                     self.itemType = HASTE
-                    self.InitCondition()
-                    self.ChangeStat(0, 0, 0, 5)
+                    self.ResetCondition()
+                    self.ChangeStat(0, 0, 0, 5, 1)
                     self.itemStart = pygame.time.get_ticks()
+                elif (item.GetImage() == ATTACKSPEED):
+                    self.itemType = ATTACKSPEED
+                    self.ResetCondition()
+                    self.ChangeStat(0, 0, 0, 0, 1.5)
+                    self.itemStart = pygame.time.get_ticks()
+                    
+    def ItemReset(self):
+        self.itemType = None
+        self.ResetCondition()
+        self.isChangeStat = False
+        self.getitem = False
+        if (self.itemType == ICE):
+            self.projectileimage = BASIC
+            self.ammunition = 30
+        else:
+            self.itemElapsed = 0
+            self.itemStart = 0
 
     def drawStat(self):
         '''
@@ -781,30 +818,19 @@ class Player(Life):
         if (self.getitem is True and self.isChangeStat is True):
             if (self.itemType == ICE):
                 if (self.ammunition == 0):
-                    self.itemType = None
-                    self.ChangeStat(0, -100, 0, 0)
-                    self.projectileimage = BASIC
-                    self.isChangeStat = False
-                    self.getitem = False
-                    self.ammunition = 30
+                    self.ItemReset()
             elif (self.itemType == ARMOR):
                 self.itemElapsed = int((pygame.time.get_ticks() - self.itemStart) / 1000)
                 if (self.itemElapsed > 20):
-                    self.itemType = None
-                    self.ChangeStat(0, 0, -20, 0)
-                    self.isChangeStat = False
-                    self.getitem = False
-                    self.itemElapsed = 0
-                    self.itemStart = 0
+                    self.ItemReset()
             elif (self.itemType == HASTE):
                 self.itemElapsed = int((pygame.time.get_ticks() - self.itemStart) / 1000)
                 if (self.itemElapsed > 20):
-                    self.itemType = None
-                    self.ChangeStat(0, 0, 0, -5)
-                    self.isChangeStat = False
-                    self.getitem = False
-                    self.itemElapsed = 0
-                    self.itemStart = 0
+                    self.ItemReset()
+            elif (self.itemType == ATTACKSPEED):
+                self.itemElapsed = int((pygame.time.get_ticks() - self.itemStart) / 1000)
+                if (self.itemElapsed > 20):
+                    self.ItemReset()
 
 class Enemy(Life):
     def __init__(self, x_pos, y_pos=None):
@@ -863,7 +889,7 @@ class Enemy(Life):
         아이템을 드롭시키는 함수, 나중에 확률에 따라 드랍시킬 생각
         '''
         trueDrop = random.choices(range(1, 6), weights = [1, 1, 1, 1, 1])
-        if (trueDrop >= 4):
+        if (trueDrop[0] >= 4):
             image = random.choice(ItemTypes)
             Itemlist.append(Item(self.x_pos, self.y_pos, image))
         else:
@@ -876,11 +902,9 @@ class Enemy(Life):
         '''
         distance = self.hitbox.centerx - (player.GetPos(X) + player.GetSize(WIDTH) / 2) #플레이어와 적과의 거리를 계산함
         if (distance > 0):
-            self.left()
-            self.walk()
+            self.leftwalk()
         else:
-            self.right()
-            self.walk()
+            self.rightwalk()
 
         if (abs(distance) <= self.attackRange):
             if (player.GetCondition(HITBOX) is True):
@@ -1011,12 +1035,13 @@ def rungame():
     global Enemy, Item
     player = Player(300)
     enemy = Enemy(600)
-    player.SetStat(500, 500, 200, 0, 7)
+    player.SetStat(500, 500, 2500, 0, 7)
     Enemylist.append(enemy)
     for Enemy in Enemylist:
         Deadboollist.append(Enemy.GetCondition(DEAD))
     for Enemy in Enemylist:
-        Enemy.SetStat(2500, 2500, 80, 10, 7)
+        Enemy.SetStat(2500, 2500, 4000, 10, 7)
+    Itemlist.append(Item(100, MAP_GROUND, ATTACKSPEED))
 
     while True:
         dt = Clock.tick(60) / 1000 # 스프라이트 업데이트 주기 함수
@@ -1028,11 +1053,9 @@ def rungame():
 
             if (event.type == pygame.KEYDOWN):
                 if (event.key == pygame.K_LEFT):
-                    player.left()
-                    player.walk()
+                    player.leftwalk()
                 elif (event.key == pygame.K_RIGHT):
-                    player.right()
-                    player.walk()
+                    player.rightwalk()
                 elif (event.key == pygame.K_UP):
                     player.jump()
                 elif (event.key == pygame.K_x):
@@ -1076,7 +1099,7 @@ def rungame():
             if (len(Itemlist) != 0):
                 item.draw()
             
-        write(SmallFont, str(player.Condition) + '   ' + str(player.isDead) + '   ' + str(player.y_pos), BLACK, 400, 20)
+        write(SmallFont, str(player.atkcool) + '   ' + str(player.itemElapsed) + '   ' + str(player.y_pos), BLACK, 400, 20)
         pygame.display.update()
         Clock.tick(FPS)
     
