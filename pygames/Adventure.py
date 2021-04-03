@@ -8,10 +8,12 @@ MAP_GROUND = 465
 MAP_HEIGHT = 0
 MAP_LIMIT_LEFT = 0
 MAP_LIMIT_RIGHT = 800
+XMARGIN = 200
 
 '''
 오브젝트의 스텟 관련 변수
 '''
+MAXHP = 'maxhp'
 HP = 'hp'
 ATK = 'atk'
 DEF = 'def'
@@ -51,6 +53,11 @@ ATTACKSPEED = 'items/attackspeed.png'
 BASIC = 'char_sprite/bubble.png'
 REINFORCE = 'char_sprite/ice.png'
 
+ICEICON = pygame.image.load('char_sprite/ice.png')
+ARMORICON = pygame.image.load('items/shield.png')
+HASTEICON = pygame.image.load('items/haste.png')
+ATTACKSPEEDICON = pygame.image.load('items/attackspeed.png')
+
 '''
 오브젝트 관련 리스트 및 변수
 '''
@@ -71,8 +78,7 @@ Font = pygame.font.SysFont('굴림', 40)
 def write(Font, Text, color, x_pos, y_pos):
     surface = Font.render(Text, True, color)
     rect = surface.get_rect()
-    rect.center = (x_pos, y_pos)
-    Screen.blit(surface, rect)
+    Screen.blit(surface, (x_pos, y_pos))
 
 '''
 기본적인 색상
@@ -110,6 +116,12 @@ class GameStage(object):
         pass
     
     def GaemOverScreen(self):
+        pass
+    
+    def GameGuide(self):
+        pass
+    
+    def DrawStage(self):
         pass
 
 class Projectile(object):
@@ -291,11 +303,12 @@ class Life(object):
         self.DEF = DEF
         self.SPEED = SPEED
         
-    def ChangeStat(self, HP=0, ATK=0, DEF=0, SPEED=0, ATTACKSPEED=1):
+    def ChangeStat(self, MAXHP=0, HP=0 ,ATK=0, DEF=0, SPEED=0, ATTACKSPEED=1):
         '''
         오브젝트의 스텟의 변화를 주는 메서드
         주로 아이템이나 적의 공격을 받을 때 쓰인다
         '''
+        self.MAXHP += MAXHP
         self.HP += HP
         self.ATK += ATK
         self.DEF += DEF
@@ -307,7 +320,9 @@ class Life(object):
         오브젝트의 스텟 반환
         '''
         try:
-            if (stat == 'hp'):
+            if (stat == 'maxhp'):
+                return self.MAXHP
+            elif (stat == 'hp'):
                 return self.HP
             elif (stat == 'atk'):
                 return self.ATK
@@ -398,12 +413,12 @@ class Life(object):
         '''
         걷는 상태를 설정하는 메서드
         '''
-        if (self.Condition != WALK):
+        if (self.isWalk is False):
             self.isChangeCondition = True
         else:
             self.isChangeCondition = False
         
-        if (self.Condition != GETATTACK): # 만일 이 조건문이 없을 시 죽은 후에도 방향전환이 됨. 아래도 동일
+        if (self.isGetattack is False): # 만일 이 조건문이 없을 시 죽은 후에도 방향전환이 됨. 아래도 동일
             self.isWalk = True
             self.isAttack = False
             self.isGetattack = False
@@ -416,7 +431,7 @@ class Life(object):
         왼쪽방향으로 걷게 해주는 메서드
         사망시 방향전환 및 걷기가 안되도록 설정
         '''
-        if (self.Condition != DEAD):
+        if (self.isDead is False):
             self.left()
             self.walk()
             
@@ -425,7 +440,7 @@ class Life(object):
         오른쪽방향으로 걷게 해주는 메서드
         사망시 방향전환 및 걷기가 안되도록 설정
         '''
-        if (self.Condition != DEAD):
+        if (self.isDead is False):
             self.right()
             self.walk()
         
@@ -434,7 +449,7 @@ class Life(object):
         오브젝트의 점프 상태를 설정하는 메서드
         오브젝트가 지면으로부터 붕 떠져있는 경우 더 이상 위로 올라가지 않게 수정
         '''
-        if (self.Condition != DEAD):
+        if (self.isDead is False):
             self.isOnGround = False
             if (self.hitbox.bottom < MAP_GROUND):
                 self.y_pos += 0
@@ -446,12 +461,12 @@ class Life(object):
         오브젝트의 공격 상태를 설정하는 메서드
         공격 함수 호출 시 쿨타임이 돌아가도록 설정함
         '''
-        if (self.Condition != ATTACK):
+        if (self.isAttack is False):
             self.isChangeCondition = True
         else:
             self.isChangeCondition = False
         
-        if (self.Condition != GETATTACK and self.coolElapsed == 0):
+        if (self.isGetattack is False and self.isDead is False and self.coolElapsed == 0):
             self.isWalk = False
             self.isAttack = True
             self.delayStart = pygame.time.get_ticks()
@@ -464,7 +479,7 @@ class Life(object):
         플레이어의 피격 상태를 표현해주는 메서드
         적의 위치상태에 따라 방향, 밀려나는 거리를 설정
         '''
-        if (self.Condition != GETATTACK):
+        if (self.isGetattack is False):
             self.isChangeCondition = True
         else:
             self.isChangeCondition = False
@@ -485,7 +500,7 @@ class Life(object):
         '''
         오브젝트가 죽었음을 나타내는 메서드
         '''
-        if (self.Condition != DEAD):
+        if (self.isDead is False):
             self.isChangeCondition = True
         else:
             self.isChangeCondition = False
@@ -551,12 +566,12 @@ class Life(object):
         오브젝트의 컨디션을 업데이트 시켜주는 함수
         불값을 기반으로 업데이트 시켜줌
         '''
-        if (self.isWalk is True and self.isDead is False):
+        if (self.isWalk is True):
             self.Condition = WALK
-        elif (self.isAttack is True and self.isDead is False):
+        elif (self.isAttack is True):
             self.Condition = ATTACK
             self.attackHitbox = True
-        elif (self.isGetattack is True and self.isDead is False):
+        elif (self.isGetattack is True):
             self.Condition = GETATTACK
         elif (self.isDead is True):
             self.Condition = DEAD
@@ -567,7 +582,7 @@ class Life(object):
         if (self.Condition != ATTACK):
             self.updateCooldown()
         
-    def updatepos(self):
+    def updatePos(self):
         '''
         오브젝트의 위치를 업데이트 시키는 메서드
         '''
@@ -595,7 +610,7 @@ class Life(object):
             elif (self.direction == RIGHT):
                 self.x_pos += self.SPEED
 
-    def updatesprite(self, dt):# 추후 아이템 획득시에도 스프라이트 관련 업데이트를 추가할 것
+    def updateSprite(self, dt):# 추후 아이템 획득시에도 스프라이트 관련 업데이트를 추가할 것
         '''
         적의 스프라이트를 업데이트 시켜주는 함수
         스프라이트 업데이트 지연까지 추가함
@@ -635,8 +650,8 @@ class Life(object):
         가독성을 위해
         '''
         self.updateCondition()
-        self.updatepos()
-        self.updatesprite(dt)
+        self.updatePos()
+        self.updateSprite(dt)
         
 class Player(Life):
     def __init__(self, x_pos, y_pos=None):
@@ -748,22 +763,22 @@ class Player(Life):
                 if (item.GetImage() == ICE):
                     self.itemType = ICE
                     self.ResetCondition()
-                    self.ChangeStat(0, 100, 0, 0, 1)
+                    self.ChangeStat(MAXHP=0, HP=0, ATK=100, DEF=0, SPEED=0, ATTACKSPEED=1)
                     self.projectileimage = REINFORCE
                 elif (item.GetImage() == ARMOR):
                     self.itemType = ARMOR
                     self.ResetCondition()
-                    self.ChangeStat(0, 0, 20, 0, 1)
+                    self.ChangeStat(MAXHP=0, HP=0, ATK=0, DEF=20, SPEED=0, ATTACKSPEED=1)
                     self.itemStart = pygame.time.get_ticks()
                 elif (item.GetImage() == HASTE):
                     self.itemType = HASTE
                     self.ResetCondition()
-                    self.ChangeStat(0, 0, 0, 5, 1)
+                    self.ChangeStat(MAXHP=0, HP=0, ATK=0, DEF=0, SPEED=5, ATTACKSPEED=1)
                     self.itemStart = pygame.time.get_ticks()
                 elif (item.GetImage() == ATTACKSPEED):
                     self.itemType = ATTACKSPEED
                     self.ResetCondition()
-                    self.ChangeStat(0, 0, 0, 0, 1.5)
+                    self.ChangeStat(MAXHP=0, HP=0, ATK=0, DEF=0, SPEED=0, ATTACKSPEED=1.5)
                     self.itemStart = pygame.time.get_ticks()
                     
     def ItemReset(self):
@@ -787,20 +802,19 @@ class Player(Life):
         pygame.draw.rect(Screen, VIRGINRED, (10, 10, Length, 30), 2)
         if (self.HP >= 0):
             pygame.draw.rect(Screen, RED, (10, 10, self.HP / convertConficient , 30))
-        
-        ICEICON = pygame.image.load('char_sprite/ice.png')
-        ARMORICON = pygame.image.load('items/shield.png')
-        HASTEICON = pygame.image.load('items/haste.png')
             
         if (self.itemType == ICE):
             Screen.blit(ICEICON, (Length + 20, 10))
-            write(SmallFont, ' X ' + str(self.ammunition), BLACK, Length + 80, 20)
+            write(SmallFont, ' X ' + str(self.ammunition), BLACK, Length + 60, 20)
         elif (self.itemType == ARMOR):
             Screen.blit(ARMORICON, (Length + 20, 10))
-            write(SmallFont, ' : ' + str(self.duration - self.itemElapsed) + ' sec ', BLACK, Length + 100, 20)
+            write(SmallFont, ' : ' + str(self.duration - self.itemElapsed) + ' sec ', BLACK, Length + 60, 20)
         elif (self.itemType == HASTE):
             Screen.blit(HASTEICON, (Length + 20, 10))
-            write(SmallFont, ' : ' + str(self.duration - self.itemElapsed) + ' sec ', BLACK, Length + 100, 20)
+            write(SmallFont, ' : ' + str(self.duration - self.itemElapsed) + ' sec ', BLACK, Length + 60, 20)
+        elif (self.itemType == ATTACKSPEED):
+            Screen.blit(ATTACKSPEEDICON, (Length + 20, 10))
+            write(SmallFont, ' : ' + str(self.duration - self.itemElapsed) + ' sec ', BLACK, Length + 60, 20)
             
     def updateCondition(self):
         '''
@@ -909,7 +923,7 @@ class Enemy(Life):
         if (abs(distance) <= self.attackRange):
             if (player.GetCondition(HITBOX) is True):
                 self.attack()
-                if (self.coolElapsed != 0):
+                if (self.coolElapsed != 0 and self.checkcollision(player) is True):
                     self.static()
 
         for projectile in player.GetProjectiles():
@@ -926,6 +940,8 @@ class Enemy(Life):
         if (self.isDead is True and self.isDrop is False):
             self.dropItem()
             self.isDrop = True
+            
+        return distance
 
     def drawStat(self):
         Length = 125
@@ -936,14 +952,14 @@ class Enemy(Life):
             pygame.draw.rect(Screen, RED, (self.hitbox.centerx - Length / 2,
                                            self.hitbox.bottom + 19, self.HP / convertConficient , 9))
             
-    def updatesprite(self, dt):# 추후 아이템 획득시에도 스프라이트 관련 업데이트를 추가할 것
+    def updateSprite(self, dt):# 추후 아이템 획득시에도 스프라이트 관련 업데이트를 추가할 것
         '''
         적의 스프라이트를 업데이트 시켜주는 함수
         스프라이트 업데이트 지연까지 추가함
         '''
-        super().updatesprite(dt)
+        super().updateSprite(dt)
         if (self.direction == LEFT):
-            self.hitbox = self.cursprite.get_rect(bottomright=(self.x_pos + self.attackRange, self.y_pos)) #방향전환시 좌표오류를 잡아줌
+            self.hitbox = self.cursprite.get_rect(bottomright=(self.x_pos + 70, self.y_pos)) #방향전환시 좌표오류를 잡아줌
         else:
             self.hitbox = self.cursprite.get_rect(bottomleft=(self.x_pos, self.y_pos))
             
@@ -954,8 +970,8 @@ class Enemy(Life):
         '''
         self.AI(player)
         self.updateCondition()
-        self.updatepos()
-        self.updatesprite(dt)
+        self.updatePos()
+        self.updateSprite(dt)
 
 class Boss(Enemy):
     def __init__(self, x_pos, y_pos=None):
@@ -1023,11 +1039,39 @@ def GameoverScreen():
     
     for event in pygame.event.get():
         if (event.type == pygame.KEYDOWN):
-            if (event.key == pygame.K_y):
+            if (event.key == pygame.K_s):
                 return True
             elif (event.key == pygame.K_n):
                 pygame.quit()
                 sys.exit()
+                
+def GameGuide():
+    while True:
+        Screen.fill(WHITE)
+        write(SmallFont, 'MANUAL', BLACK, XMARGIN, 30)
+        write(SmallFont, '<-, -> : LEFT, RIGHT MOVE', BLACK, XMARGIN, 80)
+        write(SmallFont, '^ : JUMP', BLACK, XMARGIN, 110)
+        write(SmallFont, 'x : ATTACK', BLACK, XMARGIN, 140)
+        write(SmallFont, 'z : GETITEM', BLACK, XMARGIN, 170)
+        write(SmallFont, 'ESC : GAME TERMINATE', BLACK, XMARGIN, 200)
+        
+        Screen.blit(ICEICON, (XMARGIN, 230))
+        write(SmallFont, ': REINFORCE ATK', BLACK, XMARGIN + 35, 240)
+        Screen.blit(ARMORICON, (XMARGIN, 260))
+        write(SmallFont, ': REINFORCE DEF', BLACK, XMARGIN + 35, 270)
+        Screen.blit(HASTEICON, (XMARGIN, 290))
+        write(SmallFont, ': REINFORCE SPEED', BLACK, XMARGIN + 35, 300)
+        Screen.blit(ATTACKSPEEDICON, (XMARGIN, 320))
+        write(SmallFont, ': REINFORCE ATTACKSPEED', BLACK, XMARGIN + 35, 330)
+        
+        write(SmallFont, 'PRESS S!', BLACK, XMARGIN, 500)
+        pygame.draw.rect(Screen, BLACK, (0, 0, x_size, y_size), 5)
+        pygame.display.update()
+        
+        for event in pygame.event.get():
+            if (event.type == pygame.KEYDOWN):
+                if (event.key == pygame.K_s):
+                    return True
 
 def rungame():
     pygame.init()
@@ -1035,12 +1079,12 @@ def rungame():
     global Enemy, Item
     player = Player(300)
     enemy = Enemy(600)
-    player.SetStat(500, 500, 2500, 0, 7)
+    player.SetStat(MAXHP=500, HP=500, ATK=200, DEF=0, SPEED=5)
     Enemylist.append(enemy)
     for Enemy in Enemylist:
         Deadboollist.append(Enemy.GetCondition(DEAD))
     for Enemy in Enemylist:
-        Enemy.SetStat(2500, 2500, 4000, 10, 7)
+        Enemy.SetStat(MAXHP=2500, HP=2500, ATK=80, DEF=10, SPEED=7)
     Itemlist.append(Item(100, MAP_GROUND, ATTACKSPEED))
 
     while True:
@@ -1062,6 +1106,8 @@ def rungame():
                     player.attack()
                 elif (event.key == pygame.K_z): #아이템 획득 키
                     player.getItem()
+                elif (event.key == pygame.K_g):
+                    pass
                 elif (event.key == pygame.K_ESCAPE):
                     pygame.quit()
                     sys.exit()
@@ -1098,8 +1144,12 @@ def rungame():
         for item in Itemlist:
             if (len(Itemlist) != 0):
                 item.draw()
-            
-        write(SmallFont, str(player.atkcool) + '   ' + str(player.itemElapsed) + '   ' + str(player.y_pos), BLACK, 400, 20)
+        
+        '''
+        if (player.GetCondition(DEAD) is True):
+            return False
+        '''
+        write(SmallFont, str(Enemylist[0].index) + '   ' + str(Enemylist[0].AI(player)), BLACK, 400, 20)
         pygame.display.update()
         Clock.tick(FPS)
     
@@ -1108,11 +1158,18 @@ def main():
     pygame.init()
     Clock = pygame.time.Clock()
     Screen = pygame.display.set_mode((x_size, y_size))
-    BigFont = pygame.font.SysFont('굴림', 70)
-    SmallFont = pygame.font.SysFont('굴림', 40)
+    BigFont = pygame.font.SysFont('notosanscjkkrblack', 70)
+    SmallFont = pygame.font.SysFont('notosanscjkkrblack', 40)
     
     pygame.display.set_caption("Adventure")
     
+    '''
+    StartScreen()
+    GameGuide()
+    while True:
+        rungame()
+        GameoverScreen()
+    '''
     rungame()
     
 if (__name__ == '__main__'):
