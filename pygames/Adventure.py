@@ -49,6 +49,8 @@ ICE = 'char_sprite/ice.png'
 ARMOR = 'items/shield.png'
 HASTE = 'items/haste.png'
 ATTACKSPEED = 'items/attackspeed.png'
+HPRECOVERY = 'items/hprecovery.png'
+MAXHPUP = 'items/hpmaxup.png'
 
 BASIC = 'char_sprite/bubble.png'
 REINFORCE = 'char_sprite/ice.png'
@@ -57,6 +59,8 @@ ICEICON = pygame.image.load('char_sprite/ice.png')
 ARMORICON = pygame.image.load('items/shield.png')
 HASTEICON = pygame.image.load('items/haste.png')
 ATTACKSPEEDICON = pygame.image.load('items/attackspeed.png')
+HPRECOVERYICON = pygame.image.load('items/hprecovery.png')
+MAXHPUPICON = pygame.image.load('items/hpmaxup.png')
 
 DETECTICON = pygame.image.load('effect_icon/detectIcon.png')
 
@@ -64,14 +68,28 @@ DETECTICON = pygame.image.load('effect_icon/detectIcon.png')
 오브젝트 관련 리스트 및 변수 -> 이 리스트들을 GameStage 클래스 내부에 조만간 편입시켜야 할듯.
 '''
 Enemylist = [] # 화면에 그릴 적 리스트
-Deadboollist = [] # 적들이 생존해있는지 아닌지 체크해주는 리스트. 만일 모든 리스트 요소가 참일 경우 스테이지 종료되도록 설정
 
 Enemydic = {'Near': list(),
             'Distance': list(),
             'Boss': list()} #추후 쓰일 적 딕셔너리 타입. 딕셔너리 타입에 따라 스텟을 조정할 예정
-ItemTypes = [ICE, ARMOR, HASTE, ATTACKSPEED] # 아이템 타입, 주로 스프라이트 파일로 통해 아이템 획득을 구분할 예정
+ItemTypes = [ICE, ARMOR, HASTE, ATTACKSPEED, HPRECOVERY, MAXHPUP] # 아이템 타입, 주로 스프라이트 파일로 통해 아이템 획득을 구분할 예정
 Itemlist = [] # 아이템을 담는 리스트
 Stagelist = [1, 2, 3, 4] # 스테이지 리스트 -> 반복문을 통하여 스테이지를 넘어가도록 설계함
+
+'''
+기본적인 스텟 함수
+'''
+PlayerStat = [500, 500, 200, 0, 5]
+EnemyStat = [2500, 2500, 80, 10, 3]
+
+'''
+아이템 획득 시 스텟 변환 리스트
+'''
+ICEStat = [0, 0, 100, 0, 0, 1]
+ARMORStat = [0, 0, 0, 20, 0, 1]
+HASTEStat = [0, 0, 0, 0, 5, 1]
+ATTACKSPEEDStat = [0, 0, 0, 0, 0, 1.5]
+MAXHPUPStat = [250, 0, 0, 0, 0, 1]
 
 '''
 텍스트 작성 함수
@@ -113,17 +131,25 @@ class GameStage(object):
         self.stage = stage
         self.mapImages = [mapscale]
         
-        self.player = None
-        self.Enemylist = []
-        self.Itemlist = []
+        self.PLAYER = None
+        self.ClearStage = False
         self.Deadboollist = []
-        self.DeadCounts = 0
+        self.CameraPos = [0, 0]
         
         self.score = 0
         
-    def GetScore(self, Type):
-        if (Type == 'item'):
-            self.score += 10
+    def UpdateScore(self):
+        itemscore = self.PLAYER.itemcounts * 10
+        killscore = len(self.Deadboollist) * 40
+        stageclearscore = 0
+        
+        if (self.ClearStage is True):
+            stageclearscore = 100
+        
+        self.score = itemscore + killscore + stageclearscore
+            
+    def GetPlayer(self):
+        return self.PLAYER
     
     def OpeningScreen(self):
         while True:
@@ -162,7 +188,11 @@ class GameStage(object):
             write(SmallFont, ': REINFORCE SPEED', BLACK, XMARGIN + 35, 300)
             Screen.blit(ATTACKSPEEDICON, (XMARGIN, 330))
             write(SmallFont, ': REINFORCE ATTACKSPEED', BLACK, XMARGIN + 35, 330)
-        
+            Screen.blit(HPRECOVERYICON, (XMARGIN, 360))
+            write(SmallFont, ': RECOVERY HP', BLACK, XMARGIN + 35, 360)
+            Screen.blit(MAXHPUPICON, (XMARGIN, 390))
+            write(SmallFont, ': IMPROVE MAXHP AND RECOVERY HP', BLACK, XMARGIN + 35, 390)
+            
             write(SmallFont, 'PRESS S!', BLACK, XMARGIN, 500)
             pygame.draw.rect(Screen, BLACK, (0, 0, x_size, y_size), 5)
             pygame.display.update()
@@ -173,12 +203,8 @@ class GameStage(object):
                         return False
     
     def ClearScreen(self):
-        for bools in Deadboollist:
-            if (bools is True):
-                self.DeadCounts += 1
-        
-        if (self.DeadCounts == len(Deadboollist)):
-            
+        if (len(self.Deadboollist) == len(Enemylist)):
+            pass
             
     
     def GameoverScreen(self):
@@ -192,32 +218,40 @@ class GameStage(object):
             if (event.type == pygame.KEYDOWN):
                 if (event.key == pygame.K_y):
                     self.ResetStage()
+                    self.SetStage()
                 elif (event.key == pygame.K_n):
+                    pygame.quit()
+                    sys.exit()
+                elif (event.key is None):
                     pygame.quit()
                     sys.exit()
                     
     def SetStage(self):
         if (self.stage == 1):
-            self.player = PlayerObject(150)
+            self.PLAYER = PlayerObject(150)
             enemy = EnemyObject(600)
-            self.player.SetStat(MAXHP=500, HP=500, ATK=200, DEF=0, SPEED=5)
+            self.PLAYER.SetStat(*PlayerStat)
             Enemylist.append(enemy)
             for Enemy in Enemylist:
-                Deadboollist.append(Enemy.GetCondition(DEAD))
-            for Enemy in Enemylist:
-                Enemy.SetStat(MAXHP=2500, HP=2500, ATK=80, DEF=10, SPEED=2)
+                Enemy.SetStat(*EnemyStat)
     
     def DrawStage(self):
-        Screen.blit(self.mapImages[self.stage - 1], (0, 0))
+        Screen.blit(self.mapImages[self.stage - 1], (0, 0), (self.CameraPos[0], self.CameraPos[1], x_size, y_size))
+        write(SmallFont, 'Scroe: ' + str(self.score), BLACK, 650, 25)
         
     def ResetStage(self):
         Enemylist.clear()
-        Deadboollist.clear()
         Itemlist.clear()
-        self.DeadCounts = 0
+        
+    def UpdatePos(self):
+        if (self.PLAYER.GetPos(X) >= x_size * 0.6):
+            self.CameraPos[0] += 200
+        elif (self.PLAYER.GetPos(X) <= 100):
+            self.CameraPos[0] -= 200
     
     def UpdateStage(self):
-        pass
+        self.UpdatePos()
+        self.UpdateScore()
 
 class Projectile(object):
     '''
@@ -296,7 +330,7 @@ class Projectile(object):
         else:
             return False
 
-class Item(object):
+class ItemObject(object):
     def __init__(self, x_pos, y_pos, image):
         '''
         아이템의 전체적인 정보를 저장하는 생성자
@@ -676,6 +710,9 @@ class LifeObject(object):
         오브젝트의 컨디션을 업데이트 시켜주는 함수
         불값을 기반으로 업데이트 시켜줌
         '''
+        if (self.HP <= 0):
+            self.dead()
+            
         if (self.isWalk is True):
             self.Condition = WALK
         elif (self.isAttack is True):
@@ -739,9 +776,8 @@ class LifeObject(object):
             self.cur = 3
             self.updateCycle()
             self.isGetattack = False
-        if (self.HP <= 0):
+        if (self.Condition == DEAD):
             self.cur = 4
-            self.dead()
             self.isChangeCondition = False
         
         if (self.current_time >= self.animation_time or self.isChangeCondition is True):
@@ -773,6 +809,7 @@ class PlayerObject(LifeObject):
         
         self.direction = RIGHT
         self.getitem = False
+        self.itemcounts = 0 #누적으로 획득한 아이템 개수
         self.itemType = None
         self.projectileimage = BASIC
         self.projectilelist = []
@@ -799,10 +836,10 @@ class PlayerObject(LifeObject):
         플레이어의 체력을 제외한 모든 스텟 및 시간을 초기화시키는 메서드
         주로 아이템을 중복으로 먹었을 시에 활성화 됨
         '''
-        self.MAXHP = 500
-        self.ATK = 50
-        self.DEF = 0
-        self.SPEED = 10
+        self.MAXHP = PlayerStat[0]
+        self.ATK = PlayerStat[2]
+        self.DEF = PlayerStat[3]
+        self.SPEED = PlayerStat[4]
         self.projectileimage = BASIC
         
         self.duration = 20
@@ -864,33 +901,47 @@ class PlayerObject(LifeObject):
         '''
         아이템을 얻게 해주는 메서드 아이템 종류에 따라 효과가 다르게 발동되도록 변경
         '''
-        self.getitem = True
-        
         for item in Itemlist:
             if (self.checkcollision(item) is True):
                 Itemlist.remove(item)
+                self.getitem = True
                 self.isChangeStat = True
+                self.itemcounts += 1
                 if (item.GetImage() == ICE):
                     self.itemType = ICE
                     self.ResetCondition()
-                    self.ChangeStat(MAXHP=0, HP=0, ATK=100, DEF=0, SPEED=0, ATTACKSPEED=1)
+                    self.ChangeStat(*ICEStat)
                     self.projectileimage = REINFORCE
+                    self.getitem = False
                 elif (item.GetImage() == ARMOR):
                     self.itemType = ARMOR
                     self.ResetCondition()
-                    self.ChangeStat(MAXHP=0, HP=0, ATK=0, DEF=20, SPEED=0, ATTACKSPEED=1)
+                    self.ChangeStat(*ARMORStat)
                     self.itemStart = pygame.time.get_ticks()
+                    self.getitem = False
                 elif (item.GetImage() == HASTE):
                     self.itemType = HASTE
                     self.ResetCondition()
-                    self.ChangeStat(MAXHP=0, HP=0, ATK=0, DEF=0, SPEED=5, ATTACKSPEED=1)
+                    self.ChangeStat(*HASTEStat)
                     self.itemStart = pygame.time.get_ticks()
+                    self.getitem = False
                 elif (item.GetImage() == ATTACKSPEED):
                     self.itemType = ATTACKSPEED
                     self.ResetCondition()
-                    self.ChangeStat(MAXHP=0, HP=0, ATK=0, DEF=0, SPEED=0, ATTACKSPEED=1.5)
+                    self.ChangeStat(*ATTACKSPEEDStat)
                     self.itemStart = pygame.time.get_ticks()
-                    
+                    self.getitem = False
+                elif (item.GetImage() == MAXHPUP):
+                    self.itemType = MAXHPUP
+                    self.ResetCondition()
+                    self.ChangeStat(*MAXHPUPStat)
+                    self.HP = self.MAXHP
+                    self.itemStart = pygame.time.get_ticks()
+                    self.getitem = False
+                elif (item.GetImage() == HPRECOVERY):
+                    self.HP = self.MAXHP
+                    self.getitem = False
+                
     def ItemReset(self):
         '''
         아이템 효과가 다할 시에 관련 변수들을 리셋시켜주는 메서드
@@ -899,7 +950,6 @@ class PlayerObject(LifeObject):
         self.itemType = None
         self.ResetCondition()
         self.isChangeStat = False
-        self.getitem = False
         if (self.itemType == ICE):
             self.projectileimage = BASIC
             self.ammunition = 30
@@ -943,7 +993,7 @@ class PlayerObject(LifeObject):
                 if (self.checkcollision(enemy) is True and enemy.GetCondition(ATKHITBOX) is True):
                     self.getattack(enemy)
                     
-        if (self.getitem is True and self.isChangeStat is True):
+        if (self.isChangeStat is True):
             if (self.itemType == ICE):
                 if (self.ammunition == 0):
                     self.ItemReset()
@@ -959,6 +1009,12 @@ class PlayerObject(LifeObject):
                 self.itemElapsed = int((pygame.time.get_ticks() - self.itemStart) / 1000)
                 if (self.itemElapsed > 20):
                     self.ItemReset()
+            elif (self.itemType == MAXHP):
+                self.itemElapsed = int((pygame.time.get_ticks() - self.itemStart) / 1000)
+                if (self.itemElapsed > 20):
+                    self.ItemReset()
+                    if (self.HP > self.MAXHP):
+                        self.HP = self.MAXHP
 
 class EnemyObject(LifeObject):
     def __init__(self, x_pos, y_pos=None):
@@ -1017,10 +1073,10 @@ class EnemyObject(LifeObject):
         '''
         아이템을 드롭시키는 함수, 나중에 확률에 따라 드랍시킬 생각
         '''
-        trueDrop = random.choices(range(1, 6), weights = [1, 1, 1, 1, 1])
+        trueDrop = random.choices(range(1, len(ItemTypes)), weights = [1, 1, 1, 1, 1])
         if (trueDrop.pop() >= 4):
             image = random.choice(ItemTypes)
-            Itemlist.append(Item(self.x_pos, self.y_pos, image))
+            Itemlist.append(ItemObject(self.x_pos, self.y_pos, image))
         else:
             pass
     
@@ -1042,7 +1098,7 @@ class EnemyObject(LifeObject):
         플레이어에 상태에 따라서 업데이트가 된다
         '''
         distance = self.hitbox.centerx - (player.GetPos(X) + player.GetSize(WIDTH) / 2) #플레이어와 적과의 거리를 계산함
-        if (abs(distance) <= 400 or self.isGetattack is True):
+        if (abs(distance) <= 400 or self.HP != self.MAXHP):
             self.detectPlayer()
             
         if (self.isDetect is True):
@@ -1141,12 +1197,9 @@ class BossObject(EnemyObject):
         pass
 
 
-def rungame(stage):
+def rungame(Stage):
     pygame.init()
     
-    Stage = stage
-    Stage.SetStage()
-
     while True:
         dt = Clock.tick(60) / 1000 # 스프라이트 업데이트 주기 함수
         
@@ -1157,15 +1210,15 @@ def rungame(stage):
 
             if (event.type == pygame.KEYDOWN):
                 if (event.key == pygame.K_LEFT):
-                    Stage.player.leftwalk()
+                    Stage.GetPlayer().leftwalk()
                 elif (event.key == pygame.K_RIGHT):
-                    Stage.player.rightwalk()
+                    Stage.GetPlayer().rightwalk()
                 elif (event.key == pygame.K_UP):
-                    Stage.player.jump()
+                    Stage.GetPlayer().jump()
                 elif (event.key == pygame.K_x):
-                    Stage.player.attack()
+                    Stage.GetPlayer().attack()
                 elif (event.key == pygame.K_z): #아이템 획득 키
-                    Stage.player.getItem()
+                    Stage.GetPlayer().getItem()
                 elif (event.key == pygame.K_g):
                     pass
                 elif (event.key == pygame.K_ESCAPE):
@@ -1176,37 +1229,38 @@ def rungame(stage):
                 if (event.key == pygame.K_LEFT or
                     event.key == pygame.K_RIGHT or
                     event.key == pygame.K_x):
-                    if (Stage.player.GetCondition(DEAD) is False):
-                        Stage.player.static()
+                    if (Stage.GetPlayer().GetCondition(DEAD) is False):
+                        Stage.GetPlayer().static()
                     else:
-                        Stage.player.dead()
+                        Stage.GetPlayer().dead()
 
         Stage.DrawStage()
-        Stage.player.draw()
-        Stage.player.update(1)
-        if (len(Stage.player.GetProjectiles()) != 0):
-            for projectile in Stage.player.GetProjectiles():
+        Stage.UpdateStage()
+        Stage.GetPlayer().draw()
+        Stage.GetPlayer().update(1)
+        if (len(Stage.GetPlayer().GetProjectiles()) != 0):
+            for projectile in Stage.GetPlayer().GetProjectiles():
                 projectile.move()
                 projectile.draw()
                 
-            for projectile in Stage.player.GetProjectiles():
+            for projectile in Stage.GetPlayer().GetProjectiles():
                 if (projectile.GetPos(X) <= MAP_LIMIT_LEFT or
                     projectile.GetPos(X) + projectile.GetSize(WIDTH) >= MAP_LIMIT_RIGHT):
-                    Stage.player.GetProjectiles().remove(projectile)
+                    Stage.GetPlayer().GetProjectiles().remove(projectile)
             
         for enemy in Enemylist:
             if (len(Enemylist) != 0):
                 enemy.draw()
-                enemy.update(dt * 15, Stage.player)
+                enemy.update(dt * 15, Stage.GetPlayer())
                 
         for item in Itemlist:
             if (len(Itemlist) != 0):
                 item.draw()
         
-        if (Stage.player.GetCondition(DEAD) is True):
+        if (Stage.GetPlayer().GetCondition(DEAD) is True):
             return False
 
-        write(SmallFont, str(Enemylist[0].effectStart) + '   ' + str(len(Enemylist)), BLACK, 400, 20)
+        write(SmallFont, str(Enemylist[0].isDead) + '   ' + str(Stage.GetPlayer().GetPos(X)), BLACK, 400, 20)
         pygame.display.update()
         Clock.tick(FPS)
     
@@ -1220,13 +1274,14 @@ def main():
     
     pygame.display.set_caption("Adventure")
     
-    stage = GameStage(1)
+    Stage = GameStage(1)
+    Stage.SetStage()
     
-    stage.OpeningScreen()
-    stage.GameGuide()
+    Stage.OpeningScreen()
+    Stage.GameGuide()
     while True:
-        rungame(stage)
-        stage.GameoverScreen()
+        rungame(Stage)
+        Stage.GameoverScreen()
     
 if (__name__ == '__main__'):
     main()
