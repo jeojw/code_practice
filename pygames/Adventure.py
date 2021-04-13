@@ -14,6 +14,9 @@ MAP_LIMIT_RIGHT = 800
 XMARGIN = 200
 YMARGIN = 0
 
+CAMERAXMARGIN = 200
+CAMERAYMARGIN = 200
+
 '''
 오브젝트의 스텟 관련 변수
 '''
@@ -140,6 +143,7 @@ class GameStage(object):
         self.CameraMoveable = True
         self.Deadboollist = []
         self.CameraPos = [0, 0]
+        self.CameraSlack = pygame.Rect(CAMERAXMARGIN, CAMERAYMARGIN, x_size - CAMERAXMARGIN * 2, MAP_GROUND - CAMERAYMARGIN)
         
         self.score = 0
         
@@ -244,7 +248,7 @@ class GameStage(object):
                     
     def SetStage(self):
         if (self.stage == 1):
-            self.PLAYER = PlayerObject(150)
+            self.PLAYER = PlayerObject(250)
             #enemy = EnemyObject(600)
             self.PLAYER.SetStat(*PlayerStat)
             
@@ -261,23 +265,30 @@ class GameStage(object):
         write(SmallFont, 'Scroe: ' + str(self.score), BLACK, 650, 25)
         
     def CameraMovement(self, dx=0, dy=0):
-        PlayerRight = self.PLAYER.hitbox.right
-        PlayerLeft = self.PLAYER.GetPos(X)
-        
         self.CameraPos[0] += dx
         self.CameraPos[1] += dy
+                
+    def UpdateCamera(self):
+        pygame.draw.rect(Screen, RED, self.CameraSlack, 2)
         
-        if (self.CameraMoveable is False):
-            if (PlayerRight <= x_size - XMARGIN or PlayerLeft >= XMARGIN):
-                self.CameraMoveable = True
+        PlayerCenterX = self.PLAYER.GetPos(X) + self.PLAYER.GetSize(WIDTH) / 2
+        PlayerCenterY = self.PLAYER.GetPos(Y) + self.PLAYER.GetSize(HEIGHT) / 2
             
-        if (self.CameraMoveable is True):
-            if (self.CameraPos[0] + x_size >= 1600):
-                self.CameraPos[0] = 1600 - x_size
-            elif (PlayerLeft <= XMARGIN):
-                self.CameraPos[0] = 0
-        
-
+        if (self.CameraPos[0] + x_size >= 1600):
+            self.CameraPos[0] = 1600 - x_size
+            self.CameraMoveable = False
+        elif (PlayerCenterX <= CAMERAXMARGIN and self.CameraPos[0] <= 0):
+            self.CameraPos[0] = 0
+            self.CameraMoveable = False
+            
+        if (self.CameraMoveable is False):
+            if (self.CameraPos[0] >= 1600 - x_size):
+                if (PlayerCenterX <= CAMERAXMARGIN):
+                    self.CameraMoveable = True
+            elif (self.CameraPos[0] <= 0):
+                if (PlayerCenterX >= x_size - CAMERAXMARGIN):
+                    self.CameraMoveable = True
+                
 class Projectile(object):
     '''
     해당 클래스는 투사체의 기본적인 틀을 정해놓았다. 기본적으로는 버블임
@@ -1042,28 +1053,25 @@ class PlayerObject(LifeObject):
         오브젝트의 위치를 업데이트 시키는 메서드
         '''
         super().updatePos(Stage)
-            
-        if (Stage is None):
-            if (self.hitbox.left <= MAP_LIMIT_LEFT):
-                self.x_pos = MAP_LIMIT_LEFT
-            if (self.hitbox.right >= MAP_LIMIT_RIGHT):
-                self.x_pos = MAP_LIMIT_RIGHT - self.hitbox.width
-        else:
-            if (Stage.CameraMoveable is True):
-                if (self.hitbox.right >= x_size - XMARGIN):
-                    Stage.CameraMovement(5, 0)
-                    self.x_pos -= 5
-                
-                if (self.hitbox.left <= XMARGIN):
-                    Stage.CameraMovement(-5, 0)
-                    self.x_pos += 5
-            
-            if (Stage.CameraMoveable is False):
-                if (self.hitbox.left < MAP_LIMIT_LEFT):
-                    self.x_pos = MAP_LIMIT_LEFT
-                
-                if (self.hitbox.right > MAP_LIMIT_RIGHT):
-                    self.x_pos = MAP_LIMIT_RIGHT - self.hitbox.width
+        if (Stage.GetCameraView(X) <= 800 or Stage.GetCameraView(X) >= 0):
+            if (self.hitbox.centerx >= x_size - XMARGIN):
+                Stage.CameraMovement(self.SPEED, 0)
+                if (Stage.CameraMoveable is True):
+                    self.x_pos -= self.SPEED
+                else:
+                    pass
+            elif (self.hitbox.centerx <= XMARGIN):
+                Stage.CameraMovement(-self.SPEED, 0)
+                if (Stage.CameraMoveable is True):
+                    self.x_pos += self.SPEED
+                else:
+                    pass
+        '''      
+        if (self.hitbox.left <= MAP_LIMIT_LEFT):
+            self.x_pos = MAP_LIMIT_LEFT
+        if (self.hitbox.right >= MAP_LIMIT_RIGHT):
+            self.x_pos = MAP_LIMIT_RIGHT - self.hitbox.width
+        '''
 
 class EnemyObject(LifeObject):
     def __init__(self, x_pos, y_pos=None):
@@ -1296,6 +1304,7 @@ def rungame(Stage):
                         Stage.GetPlayer().dead()
 
         Stage.DrawStage()
+        Stage.UpdateCamera()
         Stage.GetPlayer().draw()
         Stage.GetPlayer().update(1, Stage)
         if (len(Stage.GetPlayer().GetProjectiles()) != 0):
@@ -1320,7 +1329,7 @@ def rungame(Stage):
         if (Stage.GetPlayer().GetCondition(DEAD) is True):
             return False
 
-        write(SmallFont, str([Stage.GetPlayer().hitbox.left, Stage.GetPlayer().hitbox.right]) + '   ' + str(Stage.CameraMoveable) + '   ' + str(Stage.CameraPos), BLACK, 400, 20)
+        write(SmallFont, str(Stage.GetPlayer().hitbox.centerx) + '   ' + str(Stage.CameraPos), BLACK, 400, 20)
         pygame.display.update()
         Clock.tick(FPS)
     
