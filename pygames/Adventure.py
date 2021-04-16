@@ -125,9 +125,12 @@ x_size = 800
 y_size = 600
 FPS = 60
 
+map_x_size = 1600
+map_y_size = 600
+
 # make enemylist!!!
 mapimage = pygame.image.load('display.png')
-mapscale = pygame.transform.scale(mapimage, (1600, 600))
+mapscale = pygame.transform.scale(mapimage, (map_x_size, map_y_size))
 
 class GameStage(object):
     '''
@@ -274,20 +277,23 @@ class GameStage(object):
         PlayerCenterX = self.PLAYER.GetPos(X) + self.PLAYER.GetSize(WIDTH) / 2
         PlayerCenterY = self.PLAYER.GetPos(Y) + self.PLAYER.GetSize(HEIGHT) / 2
             
-        if (self.CameraPos[0] + x_size >= 1600):
-            self.CameraPos[0] = 1600 - x_size
+        if (self.CameraPos[0] + x_size >= map_x_size):
+            self.CameraPos[0] = map_x_size - x_size
             self.CameraMoveable = False
         elif (PlayerCenterX <= CAMERAXMARGIN and self.CameraPos[0] <= 0):
             self.CameraPos[0] = 0
             self.CameraMoveable = False
             
         if (self.CameraMoveable is False):
-            if (self.CameraPos[0] >= 1600 - x_size):
+            if (self.CameraPos[0] >= map_x_size - x_size):
                 if (PlayerCenterX <= CAMERAXMARGIN):
                     self.CameraMoveable = True
             elif (self.CameraPos[0] <= 0):
                 if (PlayerCenterX >= x_size - CAMERAXMARGIN):
                     self.CameraMoveable = True
+                    
+    def UpdateStage(self):
+        pass
                 
 class Projectile(object):
     '''
@@ -1066,12 +1072,13 @@ class PlayerObject(LifeObject):
                     self.x_pos += self.SPEED
                 else:
                     pass
-        '''      
-        if (self.hitbox.left <= MAP_LIMIT_LEFT):
-            self.x_pos = MAP_LIMIT_LEFT
-        if (self.hitbox.right >= MAP_LIMIT_RIGHT):
-            self.x_pos = MAP_LIMIT_RIGHT - self.hitbox.width
-        '''
+                
+        if (Stage.CameraMoveable is False): 
+            if (self.hitbox.left <= MAP_LIMIT_LEFT + 10):
+                self.x_pos = MAP_LIMIT_LEFT + 11
+            if (self.hitbox.right >= MAP_LIMIT_RIGHT - 10):
+                self.x_pos = MAP_LIMIT_RIGHT - self.hitbox.width - 11
+        
 
 class EnemyObject(LifeObject):
     def __init__(self, x_pos, y_pos=None):
@@ -1329,7 +1336,7 @@ def rungame(Stage):
         if (Stage.GetPlayer().GetCondition(DEAD) is True):
             return False
 
-        write(SmallFont, str(Stage.GetPlayer().hitbox.centerx) + '   ' + str(Stage.CameraPos), BLACK, 400, 20)
+        write(SmallFont, str(Stage.GetPlayer().hitbox.centerx) + '   ' + str(Stage.CameraPos) + '   ' + str(Stage.GetPlayer().x_pos), BLACK, 400, 20)
         pygame.display.update()
         Clock.tick(FPS)
     
