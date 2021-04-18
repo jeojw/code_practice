@@ -125,45 +125,59 @@ x_size = 800
 y_size = 600
 FPS = 60
 
-map_x_size = 1600
-map_y_size = 600
+map_x_size = 2400
+map_y_size = 1000
 
 # make enemylist!!!
-mapimage = pygame.image.load('display.png')
-mapscale = pygame.transform.scale(mapimage, (map_x_size, map_y_size))
+stage_1_map = pygame.image.load('stage_1map.png')
+stage_1_scale = pygame.transform.scale(stage_1_map, (map_x_size, map_y_size))
 
 class GameStage(object):
     '''
     해당 클래스는 게임 스테이지를 구현시켜주는 클래스로, 여기에서 스테이지 진행, 게임오버 화면, 클리어 화면, 오프닝, 카메라 뷰 등을 모두 다룸
-    차후 나중에 구현할 예정
     '''
     def __init__(self, stage):
-        self.stage = stage
-        self.mapImages = [mapscale]
+        '''
+        스테이지의 기본적인 시스템
+        '''
+        self.stage = stage # 스테이지 설정
+        self.mapImages = [stage_1_scale] # 스테이지 맵 이미지
         
-        self.PLAYER = None
-        self.ClearStage = False
-        self.CameraMoveable = True
+        self.PLAYER = None # 스테이지 내에 그려질 플레이어
+        self.ClearStage = False # 스테이지가 클리어 됬는지 아닌지 판별하는 불값
+        self.CameraMoveable = True # 카메라가 이동가능한 상태인지 설정시켜주는 불값
+        self.isSlackColide = False
+        self.CameraDirection = LEFT # 카메라 방향
         self.Deadboollist = []
-        self.CameraPos = [0, 0]
+        self.CameraPos = [0, 0] # 카메라 위치
         self.CameraSlack = pygame.Rect(CAMERAXMARGIN, CAMERAYMARGIN, x_size - CAMERAXMARGIN * 2, MAP_GROUND - CAMERAYMARGIN)
         
-        self.score = 0
+        self.score = 0 # 스코어
         
     def UpdateScore(self):
+        '''
+        스코어를 업데이트시켜주는 메서드
+        '''
         itemscore = self.PLAYER.itemcounts * 10
         killscore = len(self.Deadboollist) * 40
         stageclearscore = 0
         
-        if (self.ClearStage is True):
+        if (self.ClearStage):
             stageclearscore = 100
         
         self.score = itemscore + killscore + stageclearscore
             
     def GetPlayer(self):
+        '''
+        플레이어를 리턴시켜주는 메서드
+        주로 플레이어의 정보를 필요로 하는 루프나 클래스에서 쓰임
+        '''
         return self.PLAYER
     
     def GetCameraView(self, pos):
+        '''
+        카메라뷰 위치를 리턴시켜주는 메서드
+        '''
         try:
             if (pos == 'x'):
                 return self.CameraPos[0]
@@ -175,6 +189,9 @@ class GameStage(object):
             print('Not Pos!!!')
             
     def OpeningScreen(self):
+        '''
+        게임 오프닝을 보여주는 메서드
+        '''
         while True:
             Screen.fill(WHITE)
             write(BigFont, 'Adventure', BLACK, XMARGIN, 200)
@@ -194,6 +211,9 @@ class GameStage(object):
                         sys.exit()
     
     def GameGuide(self):
+        '''
+        게임 가이드를 보여주는 메서드
+        '''
         while True:
             Screen.fill(WHITE)
             write(SmallFont, 'MANUAL', BLACK, XMARGIN, 30)
@@ -226,11 +246,17 @@ class GameStage(object):
                         return False
     
     def ClearScreen(self):
+        '''
+        스테이지 클리어시 나오는 화면
+        '''
         if (len(self.Deadboollist) == len(Enemylist)):
             pass
             
     
     def GameoverScreen(self):
+        '''
+        플레이어의 HP가 전부 소진되고 적이 전원 사망하지 않을 시 나오는 화면
+        '''
         write(BigFont, 'GameOver!!!', BLUE, XMARGIN, 200)
         write(BigFont, 'Try Again?', BLUE, XMARGIN, 280)
         write(BigFont, 'Y / N', BLUE, XMARGIN, 360)
@@ -250,30 +276,46 @@ class GameStage(object):
                     sys.exit()
                     
     def SetStage(self):
+        '''
+        스테이지를 설정시켜주는 메서드
+        주로 main()함수에서 쓰임
+        '''
         if (self.stage == 1):
-            self.PLAYER = PlayerObject(250)
+            self.PLAYER = PlayerObject(100)
             #enemy = EnemyObject(600)
             self.PLAYER.SetStat(*PlayerStat)
+            Itemlist.append(ItemObject(300, MAP_GROUND, HPRECOVERY))
             
             #Enemylist.append(enemy)
             #for Enemy in Enemylist:
                 #Enemy.SetStat(*EnemyStat)
                 
     def ResetStage(self):
+        '''
+        스테이지 재시도시 호출되는 메서드
+        '''
         Enemylist.clear()
         Itemlist.clear()
     
     def DrawStage(self):
-        Screen.blit(self.mapImages[self.stage - 1], (0, 0), (self.CameraPos[0], self.CameraPos[1], x_size, y_size))
+        '''
+        스테이지를 그려주는 메서드
+        '''
+        Screen.blit(self.mapImages[self.stage - 1], (0, y_size - map_y_size), (self.CameraPos[0], self.CameraPos[1], map_x_size, map_y_size))
+        pygame.draw.rect(Screen, RED, self.CameraSlack, 2)
         write(SmallFont, 'Scroe: ' + str(self.score), BLACK, 650, 25)
         
     def CameraMovement(self, dx=0, dy=0):
+        '''
+        카메라 이동을 관리하는 메서드
+        '''
         self.CameraPos[0] += dx
         self.CameraPos[1] += dy
                 
     def UpdateCamera(self):
-        pygame.draw.rect(Screen, RED, self.CameraSlack, 2)
-        
+        '''
+        카메라의 위치를 업데이트시켜주는 메서드
+        '''
         PlayerCenterX = self.PLAYER.GetPos(X) + self.PLAYER.GetSize(WIDTH) / 2
         PlayerCenterY = self.PLAYER.GetPos(Y) + self.PLAYER.GetSize(HEIGHT) / 2
             
@@ -286,14 +328,17 @@ class GameStage(object):
             
         if (self.CameraMoveable is False):
             if (self.CameraPos[0] >= map_x_size - x_size):
-                if (PlayerCenterX <= CAMERAXMARGIN):
+                if (PlayerCenterX < x_size - CAMERAXMARGIN):
                     self.CameraMoveable = True
             elif (self.CameraPos[0] <= 0):
-                if (PlayerCenterX >= x_size - CAMERAXMARGIN):
+                if (PlayerCenterX > CAMERAXMARGIN):
                     self.CameraMoveable = True
                     
     def UpdateStage(self):
-        pass
+        '''
+        통합 업데이트 메서드
+        '''
+        self.UpdateCamera()
                 
 class Projectile(object):
     '''
@@ -377,7 +422,7 @@ class ItemObject(object):
         '''
         아이템의 전체적인 정보를 저장하는 생성자
         '''
-        self.x_pos = x_pos
+        self.x_pos = x_pos # 지속적으로 업데이트 되는 위치를 저장하는 변수
         self.y_pos = y_pos
         self.image = image # 이미지 파일 정보...(일단 임시임)
         self.icon = pygame.image.load(image)
@@ -393,7 +438,7 @@ class ItemObject(object):
         '''
         아이템을 그리는 함수
         '''
-        Screen.blit(self.icon, (self.hitbox.x, self.hitbox.y))
+        Screen.blit(self.icon, (self.x_pos, self.hitbox.y))
 
     def checkcollision(self, Player):
         '''
@@ -403,6 +448,9 @@ class ItemObject(object):
             return True
         else:
             return False
+        
+    def updatePos(self, Stage):
+        pass
     
 class LifeObject(object):
     '''
@@ -755,13 +803,13 @@ class LifeObject(object):
         if (self.HP <= 0):
             self.dead()
             
-        if (self.isWalk is True):
+        if (self.isWalk):
             self.Condition = WALK
-        elif (self.isAttack is True):
+        elif (self.isAttack):
             self.Condition = ATTACK
-        elif (self.isGetattack is True):
+        elif (self.isGetattack):
             self.Condition = GETATTACK
-        elif (self.isDead is True):
+        elif (self.isDead):
             self.Condition = DEAD
         elif (self.isWalk is False and self.isAttack is False and
               self.isGetattack is False and self.isDead is False):
@@ -770,7 +818,7 @@ class LifeObject(object):
         if (self.Condition != ATTACK):
             self.updateCooldown()
         
-    def updatePos(self, Stage=None):
+    def updatePos(self, Stage):
         '''
         오브젝트의 위치를 업데이트 시키는 메서드
         '''
@@ -787,8 +835,14 @@ class LifeObject(object):
             self.y_pos = MAP_GROUND
             self.isOnGround = True
             self.gravity = 0
+            
+        if (Stage.CameraMoveable is False):
+            if (self.hitbox.left <= MAP_LIMIT_LEFT):
+                self.x_pos = MAP_LIMIT_LEFT
+            if (self.hitbox.right >= MAP_LIMIT_RIGHT):
+                self.x_pos = MAP_LIMIT_RIGHT - self.hitbox.width
                     
-        if (self.isWalk is True and self.isAttack is False):
+        if (self.isWalk and self.isAttack is False):
             if (self.direction == LEFT):
                 self.x_pos += -self.SPEED
             elif (self.direction == RIGHT):
@@ -818,17 +872,17 @@ class LifeObject(object):
             self.cur = 4
             self.isChangeCondition = False
         
-        if (self.current_time >= self.animation_time or self.isChangeCondition is True):
+        if (self.current_time >= self.animation_time or self.isChangeCondition):
             self.current_time = 0
             
             self.index += 1
-            if (self.index >= len(self.spritelist[self.cur]) or self.isChangeCondition is True):
+            if (self.index >= len(self.spritelist[self.cur]) or self.isChangeCondition):
                 self.index = 0
         
         self.cursprite = self.spritelist[self.cur][self.index]
         self.hitbox = self.cursprite.get_rect(bottomleft=(self.x_pos, self.y_pos))
         
-    def update(self, dt, Stage=None):
+    def update(self, dt, Stage):
         '''
         통합 update 메서드
         가독성을 위해
@@ -940,7 +994,7 @@ class PlayerObject(LifeObject):
         아이템을 얻게 해주는 메서드 아이템 종류에 따라 효과가 다르게 발동되도록 변경
         '''
         for item in Itemlist:
-            if (self.checkcollision(item) is True):
+            if (self.checkcollision(item)):
                 Itemlist.remove(item)
                 self.getitem = True
                 self.isChangeStat = True
@@ -1027,11 +1081,11 @@ class PlayerObject(LifeObject):
         '''
         super().updateCondition()
         for enemy in Enemylist:
-            if (self.isHitbox is True):
-                if (self.checkcollision(enemy) is True and enemy.GetCondition(ATKHITBOX) is True):
+            if (self.isHitbox):
+                if (self.checkcollision(enemy) and enemy.GetCondition(ATKHITBOX)):
                     self.getattack(enemy)
                     
-        if (self.isChangeStat is True):
+        if (self.isChangeStat):
             if (self.itemType == ICE):
                 if (self.ammunition == 0):
                     self.ItemReset()
@@ -1054,30 +1108,25 @@ class PlayerObject(LifeObject):
                     if (self.HP > self.MAXHP):
                         self.HP = self.MAXHP
                         
-    def updatePos(self, Stage=None):
+    def updatePos(self, Stage):
         '''
         오브젝트의 위치를 업데이트 시키는 메서드
+        플레이어는 카메라의 위치에 따라 위치가 보정되도록 변경됨
         '''
         super().updatePos(Stage)
-        if (Stage.GetCameraView(X) <= 800 or Stage.GetCameraView(X) >= 0):
-            if (self.hitbox.centerx >= x_size - XMARGIN):
+        if (Stage.GetCameraView(X) <= map_x_size - x_size or Stage.GetCameraView(X) >= 0):
+            if (self.hitbox.centerx > x_size - CAMERAXMARGIN):
                 Stage.CameraMovement(self.SPEED, 0)
-                if (Stage.CameraMoveable is True):
+                if (Stage.CameraMoveable):
                     self.x_pos -= self.SPEED
                 else:
                     pass
-            elif (self.hitbox.centerx <= XMARGIN):
+            elif (self.hitbox.centerx < CAMERAXMARGIN and Stage.GetCameraView(X) > 0):
                 Stage.CameraMovement(-self.SPEED, 0)
-                if (Stage.CameraMoveable is True):
+                if (Stage.CameraMoveable):
                     self.x_pos += self.SPEED
                 else:
                     pass
-                
-        if (Stage.CameraMoveable is False): 
-            if (self.hitbox.left <= MAP_LIMIT_LEFT + 10):
-                self.x_pos = MAP_LIMIT_LEFT + 11
-            if (self.hitbox.right >= MAP_LIMIT_RIGHT - 10):
-                self.x_pos = MAP_LIMIT_RIGHT - self.hitbox.width - 11
         
 
 class EnemyObject(LifeObject):
@@ -1165,37 +1214,37 @@ class EnemyObject(LifeObject):
         if (abs(distance) <= 400 or self.HP != self.MAXHP):
             self.detectPlayer()
             
-        if (self.isDetect is True):
+        if (self.isDetect):
             if (distance > 0):
                 self.leftwalk()
             else:
                 self.rightwalk()
 
         if (abs(distance) <= self.attackRange):
-            if (player.GetCondition(HITBOX) is True):
+            if (player.GetCondition(HITBOX)):
                 self.attack()
-                if (self.coolElapsed != 0 and self.checkcollision(player) is True):
+                if (self.coolElapsed != 0 and self.checkcollision(player)):
                     self.static()
 
         for projectile in player.GetProjectiles():
             if (len(player.GetProjectiles()) != 0):
-                if (self.isHitbox is True):
-                    if (self.checkcollision(projectile) is True):
+                if (self.isHitbox):
+                    if (self.checkcollision(projectile)):
                         self.index = 0
                         self.getattack(player)
                         player.GetProjectiles().remove(projectile)
                         
-        if (player.GetCondition(DEAD) is True):
+        if (player.GetCondition(DEAD)):
             self.static()
 
-        if (self.isDead is True and self.isDrop is False):
+        if (self.isDead and self.isDrop is False):
             self.dropItem()
             self.isDrop = True
             
         return distance
     
     def drawEffect(self):
-        if (self.isDetect is True):
+        if (self.isDetect):
             if (self.effectElapsed != 0):
                 Screen.blit(DETECTICON, (self.x_pos - 30, self.hitbox.top - 30))
 
@@ -1213,12 +1262,6 @@ class EnemyObject(LifeObject):
         오브젝트의 위치를 업데이트 시키는 메서드
         '''
         super().updatePos(Stage)
-            
-        if (Stage is None):
-            if (self.hitbox.left <= MAP_LIMIT_LEFT):
-                self.x_pos = MAP_LIMIT_LEFT
-            if (self.hitbox.right >= MAP_LIMIT_RIGHT):
-                self.x_pos = MAP_LIMIT_RIGHT - self.hitbox.width
             
     def updateSprite(self, dt):# 추후 아이템 획득시에도 스프라이트 관련 업데이트를 추가할 것
         '''
@@ -1310,10 +1353,10 @@ def rungame(Stage):
                     else:
                         Stage.GetPlayer().dead()
 
-        Stage.DrawStage()
+        Stage.DrawStage() #?
+        Stage.GetPlayer().update(1, Stage) #?
+        Stage.GetPlayer().draw() #? #?
         Stage.UpdateCamera()
-        Stage.GetPlayer().draw()
-        Stage.GetPlayer().update(1, Stage)
         if (len(Stage.GetPlayer().GetProjectiles()) != 0):
             for projectile in Stage.GetPlayer().GetProjectiles():
                 projectile.move()
@@ -1326,17 +1369,18 @@ def rungame(Stage):
             
         for enemy in Enemylist:
             if (len(Enemylist) != 0):
-                enemy.draw()
                 enemy.update(dt * 15, Stage.GetPlayer())
+                enemy.draw()
                 
         for item in Itemlist:
             if (len(Itemlist) != 0):
+                item.updatePos(Stage)
                 item.draw()
         
-        if (Stage.GetPlayer().GetCondition(DEAD) is True):
+        if (Stage.GetPlayer().GetCondition(DEAD)):
             return False
 
-        write(SmallFont, str(Stage.GetPlayer().hitbox.centerx) + '   ' + str(Stage.CameraPos) + '   ' + str(Stage.GetPlayer().x_pos), BLACK, 400, 20)
+        write(SmallFont, str(Stage.GetPlayer().hitbox.centerx) + '   ' + str(Stage.GetCameraView(X)) + '   ' + str(Stage.CameraMoveable), BLACK, 400, 20)
         pygame.display.update()
         Clock.tick(FPS)
     
