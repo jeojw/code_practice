@@ -129,7 +129,7 @@ map_x_size = 2400
 map_y_size = 1000
 
 # make enemylist!!!
-stage_1_map = pygame.image.load('stage_1map.png')
+stage_1_map = pygame.image.load('map_images/stage_1map.png')
 stage_1_scale = pygame.transform.scale(stage_1_map, (map_x_size, map_y_size))
 
 class GameStage(object):
@@ -326,6 +326,9 @@ class GameStage(object):
             self.CameraPos[0] = 0
             self.CameraMoveable = False
             
+        if (self.PLAYER.GetCondition(ONGROUND)):
+            self.CameraPos[1] = 0
+            
         if (self.CameraMoveable is False):
             if (self.CameraPos[0] >= map_x_size - x_size):
                 if (PlayerCenterX < x_size - CAMERAXMARGIN):
@@ -339,6 +342,7 @@ class GameStage(object):
         통합 업데이트 메서드
         '''
         self.UpdateCamera()
+        self.UpdateScore()
                 
 class Projectile(object):
     '''
@@ -828,13 +832,14 @@ class LifeObject(object):
         if (self.isOnGround is False):
             self.y_pos += self.airSpace
             if (self.y_pos <= MAP_GROUND - 80):
-                self.airspace = 0
+                self.airSpace = 0
                 self.gravity += 1
             self.y_pos += self.gravity
         if (self.y_pos >= MAP_GROUND):
             self.y_pos = MAP_GROUND
             self.isOnGround = True
             self.gravity = 0
+            self.airSpace = -12
             
         if (Stage.CameraMoveable is False):
             if (self.hitbox.left <= MAP_LIMIT_LEFT):
@@ -1128,6 +1133,15 @@ class PlayerObject(LifeObject):
                 else:
                     pass
         
+        if (self.isOnGround is False):
+            if (self.airSpace != 0):
+                Stage.CameraMovement(0, self.airSpace)
+            else:
+                if (self.gravity != 0):
+                    Stage.CameraMovement(0, self.gravity)
+                else:
+                    pass
+        
 
 class EnemyObject(LifeObject):
     def __init__(self, x_pos, y_pos=None):
@@ -1356,7 +1370,7 @@ def rungame(Stage):
         Stage.DrawStage() #?
         Stage.GetPlayer().update(1, Stage) #?
         Stage.GetPlayer().draw() #? #?
-        Stage.UpdateCamera()
+        Stage.UpdateStage()
         if (len(Stage.GetPlayer().GetProjectiles()) != 0):
             for projectile in Stage.GetPlayer().GetProjectiles():
                 projectile.move()
@@ -1380,7 +1394,7 @@ def rungame(Stage):
         if (Stage.GetPlayer().GetCondition(DEAD)):
             return False
 
-        write(SmallFont, str(Stage.GetPlayer().hitbox.centerx) + '   ' + str(Stage.GetCameraView(X)) + '   ' + str(Stage.CameraMoveable), BLACK, 400, 20)
+        write(SmallFont, str(Stage.GetPlayer().gravity) + '   ' + str(Stage.GetPlayer().airSpace) + '   ' + str(Stage.GetPlayer().y_pos), BLACK, 400, 20)
         pygame.display.update()
         Clock.tick(FPS)
     
