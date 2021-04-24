@@ -14,8 +14,11 @@ MAP_LIMIT_RIGHT = 800
 XMARGIN = 200
 YMARGIN = 0
 
-CAMERAXMARGIN = 200
+CAMERAXMARGIN = 280
 CAMERAYMARGIN = 200
+
+AIRSPACE = -12 # 공중 체공 계수
+JUMPHEIGHT = 120 # 점프 사거리
 
 '''
 오브젝트의 스텟 관련 변수
@@ -146,7 +149,7 @@ class GameStage(object):
         self.PLAYER = None # 스테이지 내에 그려질 플레이어
         self.ClearStage = False # 스테이지가 클리어 됬는지 아닌지 판별하는 불값
         self.CameraMoveable = True # 카메라가 이동가능한 상태인지 설정시켜주는 불값
-        self.isSlackColide = False
+        self.isCameraMove = False # 카메라가 현재 이동중인지 판별해주는 불값
         self.CameraDirection = LEFT # 카메라 방향
         self.Deadboollist = []
         self.CameraPos = [0, 0] # 카메라 위치
@@ -304,13 +307,6 @@ class GameStage(object):
         Screen.blit(self.mapImages[self.stage - 1], (0, y_size - map_y_size), (self.CameraPos[0], self.CameraPos[1], map_x_size, map_y_size))
         pygame.draw.rect(Screen, RED, self.CameraSlack, 2)
         write(SmallFont, 'Scroe: ' + str(self.score), BLACK, 650, 25)
-        
-    def CameraMovement(self, dx=0, dy=0):
-        '''
-        카메라 이동을 관리하는 메서드
-        '''
-        self.CameraPos[0] += dx
-        self.CameraPos[1] += dy
                 
     def UpdateCamera(self):
         '''
@@ -318,7 +314,8 @@ class GameStage(object):
         '''
         PlayerCenterX = self.PLAYER.GetPos(X) + self.PLAYER.GetSize(WIDTH) / 2
         PlayerCenterY = self.PLAYER.GetPos(Y) + self.PLAYER.GetSize(HEIGHT) / 2
-            
+        PlayerSpeed = self.PLAYER.GetStat(SPEED)
+
         if (self.CameraPos[0] + x_size >= map_x_size):
             self.CameraPos[0] = map_x_size - x_size
             self.CameraMoveable = False
@@ -326,16 +323,38 @@ class GameStage(object):
             self.CameraPos[0] = 0
             self.CameraMoveable = False
             
-        if (self.PLAYER.GetCondition(ONGROUND)):
-            self.CameraPos[1] = 0
-            
-        if (self.CameraMoveable is False):
+        if (not self.CameraMoveable):
             if (self.CameraPos[0] >= map_x_size - x_size):
                 if (PlayerCenterX < x_size - CAMERAXMARGIN):
                     self.CameraMoveable = True
             elif (self.CameraPos[0] <= 0):
                 if (PlayerCenterX > CAMERAXMARGIN):
                     self.CameraMoveable = True
+        else:
+            if (PlayerCenterX > x_size - CAMERAXMARGIN):
+                self.isCameraMove = True
+                self.CameraPos[0] += PlayerSpeed
+            elif (PlayerCenterX < CAMERAXMARGIN and self.CameraPos[0] > 0):
+                self.isCameraMove = True
+                self.CameraPos[0] -= PlayerSpeed
+            
+        if (not self.PLAYER.GetCondition(ONGROUND)):
+            self.isCameraMove = True
+            if (self.PLAYER.airSpace != 0):
+                self.CameraPos[1] += self.PLAYER.airSpace
+            else:
+                if (self.PLAYER.gravity != 0):
+                    self.CameraPos[1] += self.PLAYER.gravity
+                else:
+                    pass
+        else:
+            self.CameraPos[1] = 0
+            
+        if (self.PLAYER.GetCondition(ONGROUND)):    
+            if (not self.PLAYER.GetCondition(WALK)):
+                self.isCameraMove = False
+            else:
+                pass
                     
     def UpdateStage(self):
         '''
@@ -454,7 +473,26 @@ class ItemObject(object):
             return False
         
     def updatePos(self, Stage):
-        pass
+        PlayerCenterX = Stage.GetPlayer().GetPos(X) + Stage.GetPlayer().GetSize(WIDTH) / 2
+        
+        if (Stage.GetPlayer().GetCondition(WALK) and Stage.isCameraMove and Stage.CameraMoveable):
+            if (PlayerCenterX <= CAMERAXMARGIN):
+                self.x_pos += Stage.GetPlayer().GetStat(SPEED)
+            elif (PlayerCenterX >= x_size - CAMERAXMARGIN):
+                self.x_pos += -Stage.GetPlayer().GetStat(SPEED)
+                
+        if (not Stage.GetPlayer().GetCondition(ONGROUND)):
+            if (Stage.GetPlayer().airSpace != 0):
+                self.y_pos -= Stage.GetPlayer().airSpace
+            else:
+                if (Stage.GetPlayer().gravity != 0):
+                    self.y_pos -= Stage.GetPlayer().gravity
+                else:
+                    pass
+        else:
+            self.y_pos = MAP_GROUND
+                
+        self.hitbox.bottom = self.y_pos
     
 class LifeObject(object):
     '''
@@ -496,7 +534,7 @@ class LifeObject(object):
         self.Condition = STATIC # 오브젝트의 컨디션
         
         self.gravity = 0 # 중력 계수
-        self.airSpace = -12 # 점프 계수
+        self.airSpace = AIRSPACE # 점프 계수
         
         self.ChangeDelay = 0.1 # 컨디션 전환 딜레이
         self.delayStart = 0 # 딜레이 시작 시간
@@ -649,7 +687,7 @@ class LifeObject(object):
         else:
             self.isChangeCondition = False
         
-        if (self.isGetattack is False): # 만일 이 조건문이 없을 시 죽은 후에도 방향전환이 됨. 아래도 동일
+        if (not self.isGetattack): # 만일 이 조건문이 없을 시 죽은 후에도 방향전환이 됨. 아래도 동일
             self.isWalk = True
             self.isAttack = False
             self.isGetattack = False
@@ -661,7 +699,7 @@ class LifeObject(object):
         왼쪽방향으로 걷게 해주는 메서드
         사망시 방향전환 및 걷기가 안되도록 설정
         '''
-        if (self.isDead is False):
+        if (not self.isDead):
             self.left()
             self.walk()
             
@@ -670,7 +708,7 @@ class LifeObject(object):
         오른쪽방향으로 걷게 해주는 메서드
         사망시 방향전환 및 걷기가 안되도록 설정
         '''
-        if (self.isDead is False):
+        if (not self.isDead):
             self.right()
             self.walk()
         
@@ -679,7 +717,7 @@ class LifeObject(object):
         오브젝트의 점프 상태를 설정하는 메서드
         오브젝트가 지면으로부터 붕 떠져있는 경우 더 이상 위로 올라가지 않게 수정
         '''
-        if (self.isDead is False):
+        if (not self.isDead):
             self.isOnGround = False
             if (self.hitbox.bottom < MAP_GROUND):
                 self.y_pos += 0
@@ -731,7 +769,7 @@ class LifeObject(object):
         '''
         오브젝트가 죽었음을 나타내는 메서드
         '''
-        if (self.isDead is False):
+        if (not self.isDead):
             self.isChangeCondition = True
         else:
             self.isChangeCondition = False
@@ -829,19 +867,19 @@ class LifeObject(object):
         self.hitbox.x = self.x_pos
         self.hitbox.bottom = self.y_pos
 
-        if (self.isOnGround is False):
+        if (not self.isOnGround):
             self.y_pos += self.airSpace
-            if (self.y_pos <= MAP_GROUND - 80):
+            if (self.y_pos <= MAP_GROUND - JUMPHEIGHT):
                 self.airSpace = 0
-                self.gravity += 1
+                self.gravity = 7
             self.y_pos += self.gravity
         if (self.y_pos >= MAP_GROUND):
             self.y_pos = MAP_GROUND
             self.isOnGround = True
             self.gravity = 0
-            self.airSpace = -12
+            self.airSpace = AIRSPACE
             
-        if (Stage.CameraMoveable is False):
+        if (not Stage.CameraMoveable):
             if (self.hitbox.left <= MAP_LIMIT_LEFT):
                 self.x_pos = MAP_LIMIT_LEFT
             if (self.hitbox.right >= MAP_LIMIT_RIGHT):
@@ -1059,10 +1097,10 @@ class PlayerObject(LifeObject):
         플레이어의 스텟을 그려주는 메서드
         '''
         Length = 200
-        convertConficient = self.MAXHP / 200
+        convertConficient = Length / self.MAXHP
         pygame.draw.rect(Screen, VIRGINRED, (10, 10, Length, 30), 2)
         if (self.HP >= 0):
-            pygame.draw.rect(Screen, RED, (10, 10, self.HP / convertConficient , 30))
+            pygame.draw.rect(Screen, RED, (10, 10, self.HP * convertConficient , 30))
             
         if (self.itemType == ICE):
             Screen.blit(ICEICON, (Length + 20, 15))
@@ -1121,26 +1159,16 @@ class PlayerObject(LifeObject):
         super().updatePos(Stage)
         if (Stage.GetCameraView(X) <= map_x_size - x_size or Stage.GetCameraView(X) >= 0):
             if (self.hitbox.centerx > x_size - CAMERAXMARGIN):
-                Stage.CameraMovement(self.SPEED, 0)
-                if (Stage.CameraMoveable):
+                if (Stage.CameraMoveable and Stage.isCameraMove):
                     self.x_pos -= self.SPEED
                 else:
                     pass
             elif (self.hitbox.centerx < CAMERAXMARGIN and Stage.GetCameraView(X) > 0):
-                Stage.CameraMovement(-self.SPEED, 0)
-                if (Stage.CameraMoveable):
+                if (Stage.CameraMoveable and Stage.isCameraMove):
                     self.x_pos += self.SPEED
                 else:
                     pass
-        
-        if (self.isOnGround is False):
-            if (self.airSpace != 0):
-                Stage.CameraMovement(0, self.airSpace)
-            else:
-                if (self.gravity != 0):
-                    Stage.CameraMovement(0, self.gravity)
-                else:
-                    pass
+                
         
 
 class EnemyObject(LifeObject):
@@ -1211,7 +1239,7 @@ class EnemyObject(LifeObject):
         '''
         플레이어를 감지하는 함수
         '''
-        if (self.isDetect is False):
+        if (not self.isDetect):
             self.effectStart = pygame.time.get_ticks()
         self.isDetect = True
         self.effectElapsed = (pygame.time.get_ticks() - self.effectStart) / 1000
@@ -1264,17 +1292,20 @@ class EnemyObject(LifeObject):
 
     def drawStat(self):
         Length = 125
-        convertConficient = self.MAXHP / Length
+        convertConficient = Length / self.MAXHP
         pygame.draw.rect(Screen, VIRGINRED, (self.hitbox.centerx - Length / 2,
                                              self.hitbox.bottom + 18, Length, 12), 3)
         if (self.HP >= 0):
             pygame.draw.rect(Screen, RED, (self.hitbox.centerx - Length / 2,
-                                           self.hitbox.bottom + 19, self.HP / convertConficient, 9))
+                                           self.hitbox.bottom + 19, self.HP * convertConficient, 9))
             
     def updatePos(self, Stage=None):
         '''
         오브젝트의 위치를 업데이트 시키는 메서드
         '''
+        if (Stage.GetPlayer().GetCondition(ONGROUND)):
+            self.y_pos = MAP_GROUND
+            
         super().updatePos(Stage)
             
     def updateSprite(self, dt):# 추후 아이템 획득시에도 스프라이트 관련 업데이트를 추가할 것
@@ -1362,7 +1393,7 @@ def rungame(Stage):
                 if (event.key == pygame.K_LEFT or
                     event.key == pygame.K_RIGHT or
                     event.key == pygame.K_x):
-                    if (Stage.GetPlayer().GetCondition(DEAD) is False):
+                    if (not Stage.GetPlayer().GetCondition(DEAD)):
                         Stage.GetPlayer().static()
                     else:
                         Stage.GetPlayer().dead()
@@ -1394,7 +1425,7 @@ def rungame(Stage):
         if (Stage.GetPlayer().GetCondition(DEAD)):
             return False
 
-        write(SmallFont, str(Stage.GetPlayer().gravity) + '   ' + str(Stage.GetPlayer().airSpace) + '   ' + str(Stage.GetPlayer().y_pos), BLACK, 400, 20)
+        write(SmallFont, str(Stage.isCameraMove) + '   ' + str(Stage.CameraMoveable) + '   ' + str(Stage.GetPlayer().hitbox.centerx) + '   ' + str(Stage.CameraPos), BLACK, 400, 20)
         pygame.display.update()
         Clock.tick(FPS)
     
