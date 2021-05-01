@@ -1330,17 +1330,6 @@ class EnemyObject(LifeObject):
         self.hitbox.x = self.x_pos
         self.hitbox.bottom = self.y_pos
 
-        if (self.isOnGround is False):
-            self.y_pos += self.airSpace
-            if (self.y_pos <= MAP_GROUND - 80):
-                self.airSpace = 0
-                self.gravity = 7
-            self.y_pos += self.gravity
-        if (self.y_pos >= MAP_GROUND):
-            self.y_pos = MAP_GROUND
-            self.isOnGround = True
-            self.gravity = 0
-            self.airSpace = -12
                     
         if (self.isWalk and self.isAttack is False):
             if (self.direction == LEFT):
