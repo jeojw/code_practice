@@ -18,6 +18,8 @@ CAMERAXMARGIN = 250
 CAMERAYMARGIN = 200
 
 JUMPDISTANCE = 80
+AIRSPACE = -10
+GRAVITY = 10
 
 '''
 오브젝트의 스텟 관련 변수
@@ -153,12 +155,10 @@ class GameStage(object):
         self.isYCameraMove = False
         self.isSlackColide = False
         self.CameraDirection = LEFT # 카메라 방향
-        self.DeadCounts = 0
+        self.Deadboollist = []
+        self.curDeadbool = []
         self.CameraPos = [0, 0] # 카메라 위치
         self.CameraSlack = pygame.Rect(CAMERAXMARGIN, CAMERAYMARGIN, x_size - CAMERAXMARGIN * 2, MAP_GROUND - CAMERAYMARGIN)
-        
-        self.dx = 0
-        self.dy = 0
         
         self.score = 0 # 스코어
         
@@ -167,7 +167,7 @@ class GameStage(object):
         스코어를 업데이트시켜주는 메서드
         '''
         itemscore = self.PLAYER.itemcounts * 10
-        killscore = self.DeadCounts * 40
+        killscore = self.Deadboollist.count(True) * 40
         stageclearscore = 0
         
         if (self.ClearStage):
@@ -257,8 +257,9 @@ class GameStage(object):
         '''
         스테이지 클리어시 나오는 화면
         '''
-        if (len(self.Deadboollist) == len(Enemylist)):
-            pass
+        write(BigFont, 'Stage Clear!!!', BLACK, x_size / 2, 300)
+        write(BigFont, 'score : ' + str(self.score), BLACK, x_size / 2, 370)
+        pygame.time.wait(400)
             
     
     def GameoverScreen(self):
@@ -291,14 +292,14 @@ class GameStage(object):
         if (self.stage == 1):
             self.PLAYER = PlayerObject(100)
             self.PLAYER.SetStat(*PlayerStat)
-            Itemlist.append(ItemObject(900, MAP_GROUND, HPRECOVERY))
             
             Enemylist.append(EnemyObject(800))
-            #Enemylist.append(EnemyObject(300))
-            #Enemylist.append(EnemyObject(500))
-            #Enemylist.append(EnemyObject(700))
-            for Enemy in Enemylist:
-                Enemy.SetStat(*EnemyStat)
+            Enemylist.append(EnemyObject(500))
+            Enemylist.append(EnemyObject(1500))
+            Enemylist.append(EnemyObject(1700))
+            for enemy in Enemylist:
+                enemy.SetStat(*EnemyStat)
+                self.Deadboollist.append(enemy.GetCondition(DEAD))
                 
     def ResetStage(self):
         '''
@@ -306,23 +307,27 @@ class GameStage(object):
         '''
         Enemylist.clear()
         Itemlist.clear()
-        self.DeadCounts = 0
+        self.Deadboollist.clear()
+        for enemy in Enemylist:
+            self.Deadboollist.append(enemy.GetCondition(DEAD))
     
     def DrawStage(self):
         '''
         스테이지를 그려주는 메서드
         '''
         Screen.blit(self.mapImages[self.stage - 1], (0, y_size - map_y_size), (self.CameraPos[0], self.CameraPos[1], map_x_size, map_y_size))
-        pygame.draw.rect(Screen, RED, [CAMERAXMARGIN, 0, x_size - CAMERAXMARGIN, y_size], 1)
         write(SmallFont, 'Scroe: ' + str(self.score), BLACK, 650, 25)
         
     def UpdateEnemy(self):
+        self.Deadboollist.clear()
+        self.curDeadbool.clear()
         for enemy in Enemylist:
-            if (enemy.GetCondition(DEAD)):
-                self.DeadCounts += 1
-                break
-            else:
-                continue
+            self.Deadboollist.append(enemy.GetCondition(DEAD))
+            if (enemy.GetPos(X) >= 0 and enemy.GetPos(X) + enemy.GetSize(WIDTH) <= x_size):
+                self.curDeadbool.append(enemy.GetCondition(DEAD))
+                
+        if (all(self.Deadboollist)):
+            self.ClearStage = True
         
     def CameraXMovement(self, dx=0):
         '''
@@ -350,16 +355,15 @@ class GameStage(object):
             
         for enemy in Enemylist:
             if (enemy.GetPos(X) <= x_size - enemy.GetSize(WIDTH) and enemy.GetPos(X) >= 0):
-                if (not enemy.GetCondition(DEAD)):
+                if (not all(self.curDeadbool)):
                     self.isXCameraMove = False
                     self.XCameraMoveable = False
-                elif (enemy.GetCondition(DEAD)):
+                elif (all(self.curDeadbool) and (self.CameraPos[0] > 0 and self.CameraPos[0] < map_x_size - x_size)):
                     self.XCameraMoveable = True
-                    if (self.CameraPos[0] > 0 and self.CameraPos[1] < map_x_size - x_size):
-                        if (PlayerCenterX > CAMERAXMARGIN and self.CameraDirection == RIGHT):
-                            self.forceXMove = True
-                        else:
-                            self.forceXMove = False
+                if (PlayerCenterX > CAMERAXMARGIN and self.CameraDirection == RIGHT and self.XCameraMoveable):
+                    self.forceXMove = True
+                else:
+                    self.forceXMove = False
         if (self.PLAYER.GetCondition(WALK)):
             self.isXCameraMove = True
         else:
@@ -381,6 +385,7 @@ class GameStage(object):
         통합 업데이트 메서드
         '''
         self.UpdateCamera()
+        self.UpdateEnemy()
         self.UpdateScore()
         
 class Projectile(object):
@@ -499,7 +504,7 @@ class ItemObject(object):
         self.hitbox.x = self.x_pos
         self.hitbox.bottom = self.y_pos
         
-        if (Stage.XCameraMoveable and Stage.isXCameraMove):
+        if ((Stage.XCameraMoveable and Stage.isXCameraMove) or Stage.forceXMove):
             if (PlayerCenterX <= CAMERAXMARGIN and PlayerDirection == LEFT):
                 self.x_pos += Stage.GetPlayer().GetStat(SPEED)
             elif (PlayerCenterX >= CAMERAXMARGIN and PlayerDirection == RIGHT):
@@ -553,7 +558,7 @@ class LifeObject(object):
         self.Condition = STATIC # 오브젝트의 컨디션
         
         self.gravity = 0 # 중력 계수
-        self.airSpace = -12 # 점프 계수
+        self.airSpace = AIRSPACE # 점프 계수
         
         self.ChangeDelay = 0.1 # 컨디션 전환 딜레이
         self.delayStart = 0 # 딜레이 시작 시간
@@ -738,10 +743,6 @@ class LifeObject(object):
         '''
         if (self.isDead is False):
             self.isOnGround = False
-            if (self.hitbox.bottom < MAP_GROUND):
-                self.y_pos += 0
-            else:
-                self.y_pos -= 12
                 
     def attack(self):
         '''
@@ -1162,12 +1163,6 @@ class PlayerObject(LifeObject):
                 if (Stage.XCameraMoveable):
                     Stage.CameraXMovement(-self.SPEED)
                     self.x_pos += self.SPEED
-        
-        if (self.isOnGround is False):
-            if (self.airSpace != 0):
-                Stage.CameraYMovement(self.airSpace)
-            else:
-                Stage.CameraYMovement(self.gravity)
                 
         if (Stage.XCameraMoveable is False):
             if (self.hitbox.left <= MAP_LIMIT_LEFT):
@@ -1177,15 +1172,17 @@ class PlayerObject(LifeObject):
                 
         if (self.isOnGround is False):
             self.y_pos += self.airSpace
+            Stage.CameraYMovement(self.airSpace)
             if (self.y_pos <= MAP_GROUND - JUMPDISTANCE):
                 self.airSpace = 0
-                self.gravity = 7
+                self.gravity = GRAVITY
             self.y_pos += self.gravity
+            Stage.CameraYMovement(self.gravity)
         if (self.y_pos >= MAP_GROUND):
             self.y_pos = MAP_GROUND
             self.isOnGround = True
             self.gravity = 0
-            self.airSpace = -12
+            self.airSpace = AIRSPACE
                 
         if (self.isWalk and self.isAttack is False):
             if (self.direction == LEFT):
@@ -1257,6 +1254,7 @@ class EnemyObject(LifeObject):
             Itemlist.append(ItemObject(self.x_pos, self.y_pos, image))
         else:
             pass
+
     
     def detectPlayer(self):
         '''
@@ -1471,8 +1469,11 @@ def rungame(Stage):
         
         if (Stage.GetPlayer().GetCondition(DEAD)):
             return False
+        
+        if (Stage.ClearStage):
+            Stage.ClearScreen()
 
-        write(SmallFont, str(Stage.forceXMove) + '   ' + str(Stage.isXCameraMove) + '   ' + str(Stage.XCameraMoveable) + '   ' + str(Stage.PLAYER.hitbox.centerx), BLACK, 400, 20)
+        write(SmallFont, str(Stage.forceXMove) + '   ' + str(Stage.XCameraMoveable) + '   ' + str(Stage.isXCameraMove), BLACK, 350, 20)
         pygame.display.update()
         Clock.tick(FPS)
     
