@@ -20,6 +20,14 @@ CAMERAYMARGIN = 200
 JUMPDISTANCE = 80
 AIRSPACE = -10
 GRAVITY = 10
+DURATION = 20
+AMMUNITION = 30
+
+'''
+시스템 관련 변수
+'''
+PLAYERATKCOOL = 1
+ENEMYATKCOOL = 1
 
 '''
 오브젝트의 스텟 관련 변수
@@ -133,48 +141,38 @@ map_x_size = 2400
 map_y_size = 1000
 
 # make enemylist!!!
-stage_1_map = pygame.image.load('map_images/stage_1map.png')
+stage_1_map = pygame.image.load('map_images/stage_1_map.png')
+stage_2_map = pygame.image.load('map_images/stage_2_map.png')
 stage_1_scale = pygame.transform.scale(stage_1_map, (map_x_size, map_y_size))
+stage_2_scale = pygame.transform.scale(stage_2_map, (map_x_size, map_y_size))
 
 class GameStage(object):
     '''
     해당 클래스는 게임 스테이지를 구현시켜주는 클래스로, 여기에서 스테이지 진행, 게임오버 화면, 클리어 화면, 오프닝, 카메라 뷰 등을 모두 다룸
     '''
-    def __init__(self, stage):
+    def __init__(self, stage, score):
         '''
         스테이지의 기본적인 시스템
         '''
         self.stage = stage # 스테이지 설정
-        self.mapImages = [stage_1_scale] # 스테이지 맵 이미지
+        self.totalScore = score
+        self.curScore = 0
+        self.mapImages = [stage_1_scale, stage_2_scale] # 스테이지 맵 이미지
         
         self.PLAYER = None # 스테이지 내에 그려질 플레이어
         self.ClearStage = False # 스테이지가 클리어 됬는지 아닌지 판별하는 불값
+        self.GameOver = False
         self.XCameraMoveable = True # 카메라가 이동가능한 상태인지 설정시켜주는 불값
         self.isXCameraMove = False # 지금 카메라가 작동하고 있는지 판별시켜주는 불값
         self.forceXMove = False # 모든 적이 죽었르 경우 발동되는 불값
         self.isYCameraMove = False
-        self.isSlackColide = False
         self.CameraDirection = LEFT # 카메라 방향
-        self.Deadboollist = []
-        self.curDeadbool = []
+        self.Deadboollist = [] # 적 전체의 사망 판정을 관리하는 리스트
+        self.curDeadbool = [] # 현재 카메라가 비추는 영역에서의 적의 사망 판정으 관리하는 리스트
         self.CameraPos = [0, 0] # 카메라 위치
         self.CameraSlack = pygame.Rect(CAMERAXMARGIN, CAMERAYMARGIN, x_size - CAMERAXMARGIN * 2, MAP_GROUND - CAMERAYMARGIN)
         
-        self.score = 0 # 스코어
-        
-    def UpdateScore(self):
-        '''
-        스코어를 업데이트시켜주는 메서드
-        '''
-        itemscore = self.PLAYER.itemcounts * 10
-        killscore = self.Deadboollist.count(True) * 40
-        stageclearscore = 0
-        
-        if (self.ClearStage):
-            stageclearscore = 100
-        
-        self.score = itemscore + killscore + stageclearscore
-            
+        self.clearCounts = 0
     def GetPlayer(self):
         '''
         플레이어를 리턴시켜주는 메서드
@@ -257,11 +255,11 @@ class GameStage(object):
         '''
         스테이지 클리어시 나오는 화면
         '''
-        write(BigFont, 'Stage Clear!!!', BLACK, x_size / 2, 300)
-        write(BigFont, 'score : ' + str(self.score), BLACK, x_size / 2, 370)
-        pygame.time.wait(400)
+        write(BigFont, 'Stage Clear!!!', BLACK, XMARGIN, 300)
+        self.clearCounts += 1
+        pygame.display.update()
+        pygame.time.wait(1000)
             
-    
     def GameoverScreen(self):
         '''
         플레이어의 HP가 전부 소진되고 적이 전원 사망하지 않을 시 나오는 화면
@@ -293,6 +291,19 @@ class GameStage(object):
             self.PLAYER = PlayerObject(100)
             self.PLAYER.SetStat(*PlayerStat)
             
+            Itemlist.append(ItemObject(100, MAP_GROUND, ICE))
+            Enemylist.append(EnemyObject(800))
+            Enemylist.append(EnemyObject(500))
+            Enemylist.append(EnemyObject(1500))
+            Enemylist.append(EnemyObject(1700))
+            for enemy in Enemylist:
+                enemy.SetStat(*EnemyStat)
+                self.Deadboollist.append(enemy.GetCondition(DEAD))
+                
+        elif (self.stage == 2):
+            self.PLAYER = PlayerObject(100)
+            self.PLAYER.SetStat(*PlayerStat)
+            
             Enemylist.append(EnemyObject(800))
             Enemylist.append(EnemyObject(500))
             Enemylist.append(EnemyObject(1500))
@@ -303,22 +314,27 @@ class GameStage(object):
                 
     def ResetStage(self):
         '''
-        스테이지 재시도시 호출되는 메서드
+        스테이지 재시도시 또는 스테이지 클리어 시 호출되는 메서드
         '''
         Enemylist.clear()
         Itemlist.clear()
         self.Deadboollist.clear()
         for enemy in Enemylist:
             self.Deadboollist.append(enemy.GetCondition(DEAD))
+        self.ClearStage = False
+        self.GameOver = False
     
     def DrawStage(self):
         '''
         스테이지를 그려주는 메서드
         '''
         Screen.blit(self.mapImages[self.stage - 1], (0, y_size - map_y_size), (self.CameraPos[0], self.CameraPos[1], map_x_size, map_y_size))
-        write(SmallFont, 'Scroe: ' + str(self.score), BLACK, 650, 25)
+        write(SmallFont, 'Scroe: ' + str(self.totalScore + self.curScore), BLACK, 650, 25)
         
     def UpdateEnemy(self):
+        '''
+        적들이
+        '''
         self.Deadboollist.clear()
         self.curDeadbool.clear()
         for enemy in Enemylist:
@@ -328,6 +344,24 @@ class GameStage(object):
                 
         if (all(self.Deadboollist)):
             self.ClearStage = True
+            
+    def UpdateScore(self):
+        '''
+        스코어를 업데이트시켜주는 메서드
+        스코어는 스테이지가 클리어 될수록 누적이 됨
+        '''
+        itemCoefficient = 10
+        killCoefficient = 40
+        stageclearCofficient = 100
+        
+        itemscore = self.PLAYER.itemcounts * itemCoefficient
+        killscore = self.Deadboollist.count(True) * killCoefficient
+        stageclearscore = self.clearCounts * stageclearCofficient
+        
+        self.curScore = itemscore + killscore + stageclearscore
+        
+    def GetScore(self):
+        return self.curScore
         
     def CameraXMovement(self, dx=0):
         '''
@@ -379,6 +413,16 @@ class GameStage(object):
                     
         if (self.PLAYER.GetCondition(ONGROUND)):
             self.CameraPos[1] = 0
+            
+    def removeProjectile(self):
+        '''
+        투사체가 맵 밖으로 나갈 때 지우는 메서드
+        '''
+        PlayerProjectile = self.PLAYER.GetProjectiles()
+        
+        for projectile in PlayerProjectile:
+            if (projectile.GetPos(X) <= MAP_LIMIT_LEFT or projectile.GetPos(X) + projectile.GetSize(WIDTH) >= MAP_LIMIT_RIGHT):
+                PlayerProjectile.remove(projectile)
                     
     def UpdateStage(self):
         '''
@@ -386,6 +430,7 @@ class GameStage(object):
         '''
         self.UpdateCamera()
         self.UpdateEnemy()
+        self.removeProjectile()
         self.UpdateScore()
         
 class Projectile(object):
@@ -442,19 +487,6 @@ class Projectile(object):
         스크린에다가 투사체를 그려넣음
         '''
         Screen.blit(self.image, (self.hitbox.x, self.hitbox.y))
-        
-    def move(self):
-        '''
-        투사체가 자동으로 움직이도록 하는 메서드
-        업데이트까지 겸함
-        '''
-        if (self.direction == LEFT):
-            self.hitbox.x += -self.SPEED
-        else:
-            self.hitbox.x += self.SPEED
-            
-        if (self.hitbox.left <= MAP_LIMIT_LEFT or self.hitbox.right >= MAP_LIMIT_RIGHT):
-            return 'delete'
 
     def checkcollision(self, enemy):
         '''
@@ -464,6 +496,26 @@ class Projectile(object):
             return True
         else:
             return False
+        
+    def updatePos(self, Stage):
+        '''
+        투사체가 자동으로 움직이도록 하는 메서드
+        업데이트까지 겸함
+        '''
+        PlayerOnGround = Stage.GetPlayer().GetCondition(ONGROUND)
+        AirSpace = Stage.GetPlayer().airSpace
+        Gravity = Stage.GetPlayer().gravity
+        
+        if (self.direction == LEFT):
+            self.hitbox.x += -self.SPEED
+        else:
+            self.hitbox.x += self.SPEED
+            
+        if (not PlayerOnGround):
+            if (AirSpace != 0):
+                self.hitbox.y -= AirSpace
+            else:
+                self.hitbox.y -= Gravity
 
 class ItemObject(object):
     def __init__(self, x_pos, y_pos, image):
@@ -947,7 +999,7 @@ class PlayerObject(LifeObject):
         self.duration = 20 # 아이템 지속 시간
         self.itemStart = 0 # 아이템 시작 시간
         self.itemElapsed = 0 # 아이템 획득 후 경과시간
-        self.atkcool = 0.75
+        self.atkcool = PLAYERATKCOOL
         
         static = [pygame.image.load('char_sprite/char_static.png')]
         dead = [pygame.image.load('char_sprite/char_dead.png')]
@@ -972,10 +1024,11 @@ class PlayerObject(LifeObject):
         self.SPEED = PlayerStat[4]
         self.projectileimage = BASIC
         
-        self.duration = 20
+        self.duration = DURATION
         self.itemStart = 0
         self.itemElapsed = 0
-        self.atkcool = 0.75
+        self.atkcool = PLAYERATKCOOL
+        self.ammunition = AMMUNITION
         
     def GetPos(self, pos):
         '''
@@ -1015,17 +1068,13 @@ class PlayerObject(LifeObject):
         (overriding)
         '''
         super().attack()
-        if (self.itemType == ICE):
+        if (self.itemType == ICE and self.coolElapsed == 0):
             self.ammunition -= 1
         if (self.isDead is False and self.isGetattack is False and self.coolElapsed == 0):
             if (self.direction == LEFT):
                 self.projectilelist.append(Projectile(self.projectileimage, self.hitbox.left, self.hitbox.y, self.ATK, LEFT))
             else:
                 self.projectilelist.append(Projectile(self.projectileimage, self.hitbox.right, self.hitbox.y, self.ATK, RIGHT))
-            
-        for projectile in self.projectilelist:
-            if (projectile.move() == 'delete'):
-                self.projectilelist.remove(projectile)
         
     def getItem(self):
         '''
@@ -1082,7 +1131,7 @@ class PlayerObject(LifeObject):
         self.isChangeStat = False
         if (self.itemType == ICE):
             self.projectileimage = BASIC
-            self.ammunition = 30
+            self.ammunition = AMMUNITION
         else:
             self.itemElapsed = 0
             self.itemStart = 0
@@ -1092,10 +1141,10 @@ class PlayerObject(LifeObject):
         플레이어의 스텟을 그려주는 메서드
         '''
         Length = 200
-        convertConficient = Length / self.MAXHP
+        convertCoefficient = Length / self.MAXHP
         pygame.draw.rect(Screen, VIRGINRED, (10, 10, Length, 30), 2)
         if (self.HP >= 0):
-            pygame.draw.rect(Screen, RED, (10, 10, self.HP * convertConficient , 30))
+            pygame.draw.rect(Screen, RED, (10, 10, self.HP * convertCoefficient , 30))
             
         if (self.itemType == ICE):
             Screen.blit(ICEICON, (Length + 20, 15))
@@ -1129,19 +1178,19 @@ class PlayerObject(LifeObject):
                     self.ItemReset()
             elif (self.itemType == ARMOR):
                 self.itemElapsed = int((pygame.time.get_ticks() - self.itemStart) / 1000)
-                if (self.itemElapsed > 20):
+                if (self.itemElapsed > DURATION):
                     self.ItemReset()
             elif (self.itemType == HASTE):
                 self.itemElapsed = int((pygame.time.get_ticks() - self.itemStart) / 1000)
-                if (self.itemElapsed > 20):
+                if (self.itemElapsed > DURATION):
                     self.ItemReset()
             elif (self.itemType == ATTACKSPEED):
                 self.itemElapsed = int((pygame.time.get_ticks() - self.itemStart) / 1000)
-                if (self.itemElapsed > 20):
+                if (self.itemElapsed > DURATION):
                     self.ItemReset()
             elif (self.itemType == MAXHP):
                 self.itemElapsed = int((pygame.time.get_ticks() - self.itemStart) / 1000)
-                if (self.itemElapsed > 20):
+                if (self.itemElapsed > DURATION):
                     self.ItemReset()
                     if (self.HP > self.MAXHP):
                         self.HP = self.MAXHP
@@ -1202,7 +1251,7 @@ class EnemyObject(LifeObject):
         self.isDrop = False # 아이템 드랍 관련 불값
         self.isDetect = False # 플레이어 발견 관련 불값
         self.attackRange = 75 # 공격 범위
-        self.atkcool = 1
+        self.atkcool = ENEMYATKCOOL
         
         static = [pygame.image.load('enemy_sprite/enemy_static.png')]
         dead = [pygame.image.load('enemy_sprite/enemy_dead.png')]
@@ -1311,12 +1360,12 @@ class EnemyObject(LifeObject):
 
     def drawStat(self):
         Length = 125
-        convertConficient = Length / self.MAXHP
+        convertCoefficient = Length / self.MAXHP
         pygame.draw.rect(Screen, VIRGINRED, (self.hitbox.centerx - Length / 2,
                                              self.hitbox.bottom + 18, Length, 12), 3)
         if (self.HP >= 0):
             pygame.draw.rect(Screen, RED, (self.hitbox.centerx - Length / 2,
-                                           self.hitbox.bottom + 19, self.HP * convertConficient, 9))
+                                           self.hitbox.bottom + 19, self.HP * convertCoefficient, 9))
             
     def updatePos(self, Stage):
         '''
@@ -1449,7 +1498,7 @@ def rungame(Stage):
         Stage.GetPlayer().draw() #? #?
         if (len(Stage.GetPlayer().GetProjectiles()) != 0):
             for projectile in Stage.GetPlayer().GetProjectiles():
-                projectile.move()
+                projectile.updatePos(Stage)
                 projectile.draw()
                 
             for projectile in Stage.GetPlayer().GetProjectiles():
@@ -1468,15 +1517,17 @@ def rungame(Stage):
                 item.draw()
         
         if (Stage.GetPlayer().GetCondition(DEAD)):
+            Stage.GameOver = True
             return False
         
         if (Stage.ClearStage):
             Stage.ClearScreen()
+            return False
 
-        write(SmallFont, str(Stage.forceXMove) + '   ' + str(Stage.XCameraMoveable) + '   ' + str(Stage.isXCameraMove), BLACK, 350, 20)
+        write(SmallFont, str(Stage.forceXMove) + '   ' + str(Stage.XCameraMoveable) + '   ' + str(Stage.GetPlayer().isAttack), BLACK, 350, 20)
         pygame.display.update()
         Clock.tick(FPS)
-    
+        
 def main():
     global Clock, Screen, BigFont, SmallFont
     pygame.init()
@@ -1487,14 +1538,23 @@ def main():
     
     pygame.display.set_caption("Adventure")
     
-    Stage = GameStage(1)
-    Stage.SetStage()
-    
-    Stage.OpeningScreen()
-    Stage.GameGuide()
+    level = 1
+    score = 0
     while True:
-        rungame(Stage)
-        Stage.GameoverScreen()
+        Stage = GameStage(level, score)
+        Stage.SetStage()
+        if (level == 1):
+            Stage.OpeningScreen()
+            Stage.GameGuide()
+        while True:
+            rungame(Stage)
+            if (Stage.ClearStage):
+                level += 1
+                score += Stage.GetScore()
+                Stage.ResetStage()
+                break
+            elif (Stage.GameOver):
+                Stage.GameoverScreen()
     
 if (__name__ == '__main__'):
     main()
